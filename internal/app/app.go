@@ -6,21 +6,20 @@ import (
 	"github.com/TsunamiProject/UrlShortener.git/internal/config"
 	"io"
 	"log"
-	"math/rand"
 	"net/http"
 	"reflect"
 	"sync"
 )
 
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
-func RandStringBytes(n int) string {
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = letterBytes[rand.Intn(len(letterBytes))]
-	}
-	return string(b)
-}
+//const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+//
+//func RandStringBytes(n int) string {
+//	b := make([]byte, n)
+//	for i := range b {
+//		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+//	}
+//	return string(b)
+//}
 
 type Urls interface {
 	Store(string, map[string]string) (string, error)
@@ -76,7 +75,7 @@ func reqHandler(w http.ResponseWriter, r *http.Request) {
 		//setting headers
 		w.Header().Set("content-type", "application/json")
 		w.Header().Set("Location", res)
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(http.StatusTemporaryRedirect)
 		_, err = w.Write([]byte(""))
 		if err != nil {
 			log.Printf("Error: %s", err)
@@ -113,8 +112,8 @@ func saveURLHandler(r *http.Request) (string, error) {
 	}
 
 	urlsMap[string(b)] = string(b[:len(b)-8])
-	rChars := RandStringBytes(24)
-	shortUrls.Urls.Store(rChars, urlsMap)
+	//rChars := RandStringBytes(24)
+	shortUrls.Urls.Store(string(b[:len(b)-8]), urlsMap)
 
 	return urlsMap[string(b)], err
 }
