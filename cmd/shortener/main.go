@@ -25,6 +25,6 @@ func main() {
 		log.Fatal("Unable to create server instance with current config settings")
 	}
 
-	log.Printf("Server started on %s:%s. Debug mode is: %v", cfg.IpPort.IP, cfg.IpPort.PORT, cfg.Debug)
+	log.Printf("Server started on %s:%s. Debug mode is: %v", cfg.IPPort.IP, cfg.IPPort.PORT, cfg.Debug)
 	log.Fatal(server.ListenAndServe())
 }

@@ -6,20 +6,20 @@ import (
 	"strconv"
 )
 
-type IpPortConfig struct {
+type IPPortConfig struct {
 	IP   string
 	PORT string
 }
 
 type Config struct {
 	Debug  bool
-	IpPort IpPortConfig
+	IPPort IPPortConfig
 }
 
 func New() *Config {
 	config := &Config{
 		Debug: getEnvBool("DEBUG", false),
-		IpPort: IpPortConfig{
+		IPPort: IPPortConfig{
 			IP:   getEnv("IP", "localhost"),
 			PORT: getEnv("PORT", "8080"),
 		},

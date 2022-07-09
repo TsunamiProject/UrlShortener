@@ -43,17 +43,17 @@ func (u *UrlsTempStorage) Store(key string, value map[string]string) error {
 func (u *UrlsTempStorage) Load(key string) (string, error) {
 	value, _ := u.Urls.Load(key)
 	if value == nil {
-		return "", errors.New(fmt.Sprintf("There are no URLs with ID: %s", key))
+		return "", fmt.Errorf("there are no URLs with ID: %s", key)
 	}
 
-	originUrl := ""
+	originURL := ""
 	iter := reflect.ValueOf(value).MapRange()
 
 	for iter.Next() {
-		originUrl = iter.Key().String()
+		originURL = iter.Key().String()
 	}
 
-	return originUrl, nil
+	return originURL, nil
 }
 
 var shortUrls UrlsTempStorage
@@ -67,7 +67,7 @@ func reqHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Method == http.MethodGet {
 		//calls getFullUrlHandler on GET method
-		res, err := getFullUrlHandler(r)
+		res, err := getFullURLHandler(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			log.Printf("Error: %s", err)
@@ -86,7 +86,7 @@ func reqHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodPost {
 		//calls saveUrlHandler on POST method
-		res, err := saveUrlHandler(r)
+		res, err := saveURLHandler(r)
 		if err != nil {
 			log.Printf("Error: %s", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -105,7 +105,7 @@ func reqHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 //return short url from original url which must be in request body
-func saveUrlHandler(r *http.Request) (string, error) {
+func saveURLHandler(r *http.Request) (string, error) {
 	urlsMap := make(map[string]string)
 	b, err := io.ReadAll(r.Body)
 	if err != nil || len(b) == 0 {
@@ -120,13 +120,13 @@ func saveUrlHandler(r *http.Request) (string, error) {
 }
 
 //return original url by ID as URL param
-func getFullUrlHandler(r *http.Request) (string, error) {
-	reqUrl := r.URL.String()
-	if len(reqUrl) <= 1 {
+func getFullURLHandler(r *http.Request) (string, error) {
+	reqURL := r.URL.String()
+	if len(reqURL) <= 1 {
 		return "", errors.New("missing parameter: ID")
 	}
 
-	v, err := shortUrls.Load(reqUrl[1:])
+	v, err := shortUrls.Load(reqURL[1:])
 	if err != nil {
 		return v, err
 	}
@@ -140,7 +140,7 @@ func NewServer(config *config.Config) (*http.Server, error) {
 
 	//Collecting http.Server instance
 	server := &http.Server{
-		Addr: config.IpPort.IP + ":" + config.IpPort.PORT,
+		Addr: config.IPPort.IP + ":" + config.IPPort.PORT,
 	}
 
 	return server, nil
