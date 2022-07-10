@@ -66,6 +66,7 @@ func reqHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Method == http.MethodGet {
 		//calls getFullUrlHandler on GET method
+		log.Printf("Recieved request with method: %s and URL: %s from: %s", r.Method, r.URL.String(), r.Host)
 		res, err := getFullURLHandler(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -85,6 +86,7 @@ func reqHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodPost {
 		//calls saveUrlHandler on POST method
+		log.Printf("Recieved request with method: %s and URL: %s from: %s", r.Method, r.URL.String(), r.Host)
 		res, err := saveURLHandler(r)
 		if err != nil {
 			log.Printf("Error: %s", err)
