@@ -11,16 +11,6 @@ import (
 	"sync"
 )
 
-//const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-//
-//func RandStringBytes(n int) string {
-//	b := make([]byte, n)
-//	for i := range b {
-//		b[i] = letterBytes[rand.Intn(len(letterBytes))]
-//	}
-//	return string(b)
-//}
-
 type Urls interface {
 	Store(string, map[string]string) (string, error)
 	Load(string) (string, error)
@@ -66,7 +56,8 @@ func reqHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Method == http.MethodGet {
 		//calls getFullUrlHandler on GET method
-		log.Printf("Recieved request with method: %s and URL: %s from: %s", r.Method, r.URL.String(), r.Host)
+		log.Printf("Recieved request with method: %s and URL: %s from: %s",
+			r.Method, r.URL.String()[1:], r.Host)
 		res, err := getFullURLHandler(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -86,7 +77,8 @@ func reqHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodPost {
 		//calls saveUrlHandler on POST method
-		log.Printf("Recieved request with method: %s and URL: %s from: %s", r.Method, r.URL.String(), r.Host)
+		log.Printf("Recieved request with method: %s from: %s",
+			r.Method, r.Host)
 		res, err := saveURLHandler(r)
 		if err != nil {
 			log.Printf("Error: %s", err)
@@ -113,16 +105,23 @@ func saveURLHandler(r *http.Request) (string, error) {
 		return "", err
 	}
 
-	urlsMap[string(b)] = string(b[:len(b)-8])
-	//rChars := RandStringBytes(24)
-	shortUrls.Urls.Store(string(b[:len(b)-8]), urlsMap)
+	k, v := string(b), string(b[:len(b)-8])
+	urlsMap[k] = v
 
-	return urlsMap[string(b)], err
+	shortUrls.Urls.Store(v, urlsMap)
+
+	err = r.Body.Close()
+	if err != nil {
+		return "", err
+	}
+
+	return urlsMap[k], err
 }
 
 //return original url by ID as URL param
 func getFullURLHandler(r *http.Request) (string, error) {
 	reqURL := r.URL.String()
+
 	if len(reqURL) <= 1 {
 		return "", errors.New("missing parameter: ID")
 	}
@@ -137,11 +136,10 @@ func getFullURLHandler(r *http.Request) (string, error) {
 
 // NewServer return http.Server instances with config settings
 func NewServer(config *config.Config) (*http.Server, error) {
-	http.HandleFunc("/", reqHandler)
-
 	//Collecting http.Server instance
 	server := &http.Server{
-		Addr: config.IPPort.IP + ":" + config.IPPort.PORT,
+		Addr:    config.IPPort.IP + ":" + config.IPPort.PORT,
+		Handler: http.HandlerFunc(reqHandler),
 	}
 
 	return server, nil
