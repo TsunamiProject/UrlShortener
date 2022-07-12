@@ -73,7 +73,7 @@ func TestMethodNotAllowedHandler(t *testing.T) {
 	runTests(testMap, t)
 }
 
-func TestHandlers(t *testing.T) {
+func TestShortenerHandler(t *testing.T) {
 	cfg := config.New()
 	testMap := make(map[string]tests)
 	testMap["Get shorten URL from origin URL. Request body is not empty."] = tests{
