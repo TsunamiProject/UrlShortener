@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"fmt"
+	"github.com/TsunamiProject/UrlShortener.git/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
@@ -11,6 +13,7 @@ import (
 )
 
 func TestReqHandler(t *testing.T) {
+	cfg := config.New()
 	type want struct {
 		statusCode  int
 		response    string
@@ -43,7 +46,7 @@ func TestReqHandler(t *testing.T) {
 			method:      "POST",
 			want: want{
 				statusCode:  201,
-				response:    "http://endxivm.com/y1ryf",
+				response:    fmt.Sprintf("http://%s:%s/http://endxivm.com/y1ryf", cfg.IPPort.IP, cfg.IPPort.PORT),
 				contentType: "application/json",
 				location:    "",
 			},
