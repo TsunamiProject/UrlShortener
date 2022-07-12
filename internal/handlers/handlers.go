@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"fmt"
+	"github.com/TsunamiProject/UrlShortener.git/internal/config"
 	"io"
 	"log"
 	"net/http"
@@ -116,8 +117,10 @@ func saveURLHandler(r *http.Request) (string, int, error) {
 	if err != nil {
 		return "", http.StatusInternalServerError, err
 	}
+	cfg := config.New()
+	res := fmt.Sprintf("%s:%s/%s", cfg.IPPort.IP, cfg.IPPort.PORT, urlsMap[k])
 
-	return urlsMap[k], http.StatusCreated, err
+	return res, http.StatusCreated, err
 }
 
 //return original url by ID as URL param, status code and error
