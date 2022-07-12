@@ -14,7 +14,7 @@ func NewRouter() chi.Router {
 	//}
 	//Collecting router
 	router := chi.NewRouter()
-	router.Get("/*", handlers.GetUrlHandler)
+	router.Get("/*", handlers.GetURLHandler)
 	router.Post("/", handlers.ShortenerHandler)
 	router.Put("/{}", handlers.MethodNotAllowedHandler)
 	router.Patch("/{}", handlers.MethodNotAllowedHandler)

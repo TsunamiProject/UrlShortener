@@ -75,8 +75,8 @@ func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GetUrlHandler send origin url by short url in "Location" header
-func GetUrlHandler(w http.ResponseWriter, r *http.Request) {
+// GetURLHandler send origin url by short url in "Location" header
+func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 	//calls getFullUrlHandler on GET method
 	log.Printf("Recieved request with method: %s from: %s with ID_PARAM: %s",
 		r.Method, r.Host, r.URL.String()[1:])
