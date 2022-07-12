@@ -47,58 +47,58 @@ func (u *UrlsTempStorage) Load(key string) (string, error) {
 
 var shortUrls UrlsTempStorage
 
-func ReqHandler(w http.ResponseWriter, r *http.Request) {
+// MethodNotAllowedHandler send http error if request method not allowed
+func MethodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
 	//checking request method and sending error response if request method != get/post
-	if r.Method != http.MethodGet && r.Method != http.MethodPost {
-		http.Error(w, "Only get/post methods are allowed!", http.StatusBadRequest)
-		log.Printf("%d: %s request was recieved", http.StatusBadRequest, r.Method)
+	http.Error(w, "Only get/post methods are allowed!", http.StatusBadRequest)
+	log.Printf("%d: %s request was recieved", http.StatusBadRequest, r.Method)
+}
+
+// ShortenerHandler send shorten url from full url which received from request body
+func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Recieved request with method: %s from: %s",
+		r.Method, r.Host)
+	//calls saveUrlHandler on POST method
+	res, status, err := storeURL(r)
+	if err != nil {
+		log.Printf("Error: %s", err)
+		http.Error(w, err.Error(), status)
 		return
 	}
-	if r.Method == http.MethodGet {
-		//calls getFullUrlHandler on GET method
-		log.Printf("Recieved request with method: %s from: %s with ID_PARAM: %s",
-			r.Method, r.Host, r.URL.String()[1:])
-		res, status, err := getFullURLHandler(r)
-		if err != nil {
-			http.Error(w, err.Error(), status)
-			log.Printf("Error: %s", err)
-			return
-		}
-		//setting headers
-		w.Header().Set("content-type", "application/json")
-		w.Header().Set("Location", res)
-		w.WriteHeader(status)
-		_, err = w.Write([]byte(""))
-		if err != nil {
-			log.Printf("Error: %s", err)
-			return
-		}
+	//setting headers
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(status)
+	_, err = w.Write([]byte(res))
+	if err != nil {
+		log.Printf("Error: %s", err)
+		return
 	}
+}
 
-	if r.Method == http.MethodPost {
-		//calls saveUrlHandler on POST method
-		log.Printf("Recieved request with method: %s from: %s",
-			r.Method, r.Host)
-		res, status, err := saveURLHandler(r)
-		if err != nil {
-			log.Printf("Error: %s", err)
-			http.Error(w, err.Error(), status)
-			return
-		}
-		//setting headers
-		w.Header().Set("content-type", "application/json")
-		w.WriteHeader(status)
-		_, err = w.Write([]byte(res))
-		if err != nil {
-			log.Printf("Error: %s", err)
-			return
-		}
-
+// GetUrlHandler send origin url by short url in "Location" header
+func GetUrlHandler(w http.ResponseWriter, r *http.Request) {
+	//calls getFullUrlHandler on GET method
+	log.Printf("Recieved request with method: %s from: %s with ID_PARAM: %s",
+		r.Method, r.Host, r.URL.String()[1:])
+	res, status, err := getFullURL(r)
+	if err != nil {
+		http.Error(w, err.Error(), status)
+		log.Printf("Error: %s", err)
+		return
+	}
+	//setting headers
+	w.Header().Set("content-type", "application/json")
+	w.Header().Set("Location", res)
+	w.WriteHeader(status)
+	_, err = w.Write([]byte(""))
+	if err != nil {
+		log.Printf("Error: %s", err)
+		return
 	}
 }
 
 //return short url from original url which must be in request body, status code and error
-func saveURLHandler(r *http.Request) (string, int, error) {
+func storeURL(r *http.Request) (string, int, error) {
 	urlsMap := make(map[string]string)
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -124,7 +124,7 @@ func saveURLHandler(r *http.Request) (string, int, error) {
 }
 
 //return original url by ID as URL param, status code and error
-func getFullURLHandler(r *http.Request) (string, int, error) {
+func getFullURL(r *http.Request) (string, int, error) {
 	reqURL := r.URL.String()
 
 	if len(reqURL) <= 1 {

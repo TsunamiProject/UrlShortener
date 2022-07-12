@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"github.com/TsunamiProject/UrlShortener.git/internal/app"
 	"github.com/TsunamiProject/UrlShortener.git/internal/config"
 	"github.com/joho/godotenv"
 	"log"
+	"net/http"
 )
 
 func init() {
@@ -20,11 +22,9 @@ func main() {
 	cfg := config.New()
 
 	//Creating server instance
-	server, err := app.NewServer(cfg)
-	if err != nil {
-		log.Fatal("Unable to create server instance with current config settings")
-	}
+	r := app.NewRouter()
 
 	log.Printf("Server started on %s:%s. Debug mode is: %v", cfg.IPPort.IP, cfg.IPPort.PORT, cfg.Debug)
-	log.Fatal(server.ListenAndServe())
+	httpAddr := fmt.Sprintf("%s:%s", cfg.IPPort.IP, cfg.IPPort.PORT)
+	log.Fatal(http.ListenAndServe(httpAddr, r))
 }

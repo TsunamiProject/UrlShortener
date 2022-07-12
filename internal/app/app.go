@@ -1,19 +1,24 @@
 package app
 
 import (
-	"github.com/TsunamiProject/UrlShortener.git/internal/config"
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers"
-	"net/http"
+	"github.com/go-chi/chi/v5"
 )
 
-// NewServer return http.Server instances with config settings
-func NewServer(config *config.Config) (*http.Server, error) {
+// NewRouter return router instance with handlers and error
+func NewRouter() chi.Router {
 	//Collecting http.Server instance
-	server := &http.Server{
-		Addr:    config.IPPort.IP + ":" + config.IPPort.PORT,
-		Handler: http.HandlerFunc(handlers.ReqHandler),
-	}
+	//server := &http.Server{
+	//	Addr:    config.IPPort.IP + ":" + config.IPPort.PORT,
+	//	Handler: http.HandlerFunc(handlers.ReqHandler),
+	//}
+	//Collecting router
+	router := chi.NewRouter()
+	router.Get("/{}", handlers.GetUrlHandler)
+	router.Post("/", handlers.ShortenerHandler)
+	router.Put("/{}", handlers.MethodNotAllowedHandler)
+	router.Patch("/{}", handlers.MethodNotAllowedHandler)
 
-	return server, nil
+	return router
 
 }
