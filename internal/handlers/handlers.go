@@ -118,7 +118,7 @@ func saveURLHandler(r *http.Request) (string, int, error) {
 		return "", http.StatusInternalServerError, err
 	}
 	cfg := config.New()
-	res := fmt.Sprintf("%s:%s/%s", cfg.IPPort.IP, cfg.IPPort.PORT, urlsMap[k])
+	res := fmt.Sprintf("http://%s:%s/%s", cfg.IPPort.IP, cfg.IPPort.PORT, urlsMap[k])
 
 	return res, http.StatusCreated, err
 }
