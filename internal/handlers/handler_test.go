@@ -31,7 +31,7 @@ func runTests(tm map[string]tests, t *testing.T) {
 			req := httptest.NewRequest(tfileds.method, tfileds.request, strings.NewReader(tfileds.requestBody))
 			w := httptest.NewRecorder()
 			if tfileds.method == "GET" {
-				h := http.HandlerFunc(GetUrlHandler)
+				h := http.HandlerFunc(GetURLHandler)
 				h.ServeHTTP(w, req)
 			} else if tfileds.method == "POST" {
 				h := http.HandlerFunc(ShortenerHandler)
