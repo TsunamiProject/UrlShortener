@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/TsunamiProject/UrlShortener.git/internal/config"
+	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
 	"io"
 	"log"
 	"net/http"
@@ -75,6 +76,12 @@ func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func ShortenApiHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Recieved request with method: %s from: %s",
+		r.Method, r.Host)
+
+}
+
 // GetURLHandler send origin url by short url in "Location" header
 func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 	//calls getFullUrlHandler on GET method
@@ -108,7 +115,7 @@ func storeURL(r *http.Request) (string, int, error) {
 		return "", http.StatusBadRequest, errors.New("request body is empty")
 	}
 
-	k, v := string(b), string(b[:len(b)-8])
+	k, v := string(b), shorten.RandStringBytes(16)
 	urlsMap[k] = v
 
 	shortUrls.Urls.Store(v, urlsMap)
