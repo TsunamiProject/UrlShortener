@@ -1,13 +1,13 @@
 package shorten
 
-import "math/rand"
+import (
+	"crypto/sha1"
+	"encoding/hex"
+)
 
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
-func RandStringBytes(n int) string {
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = letterBytes[rand.Intn(len(letterBytes))]
-	}
-	return string(b)
+func HashString(b []byte) string {
+	sha1Obj := sha1.New()
+	sha1Obj.Write(b)
+	sha1Hash := hex.EncodeToString(sha1Obj.Sum(nil))
+	return sha1Hash[:len(sha1Hash)/2]
 }

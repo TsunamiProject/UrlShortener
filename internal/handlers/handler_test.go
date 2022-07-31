@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"github.com/TsunamiProject/UrlShortener.git/internal/config"
+	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
@@ -11,6 +12,13 @@ import (
 	"strings"
 	"testing"
 )
+
+const (
+	firstTestUrl  = "http://endxivm.com/y1ryfyoiudul7"
+	secondTestUrl = "http://test.com/"
+)
+
+var cfg = config.New()
 
 type want struct {
 	statusCode  int
@@ -26,33 +34,50 @@ type tests struct {
 }
 
 func runTests(tm map[string]tests, t *testing.T) {
-	for test, tfileds := range tm {
+	for test, tfields := range tm {
 		t.Run(test, func(t *testing.T) {
-			req := httptest.NewRequest(tfileds.method, tfileds.request, strings.NewReader(tfileds.requestBody))
+			req := httptest.NewRequest(tfields.method, tfields.request, strings.NewReader(tfields.requestBody))
 			w := httptest.NewRecorder()
-			if tfileds.method == "GET" {
+			switch {
+			case tfields.method == "GET":
 				h := http.HandlerFunc(GetURLHandler)
 				h.ServeHTTP(w, req)
-			} else if tfileds.method == "POST" {
-				h := http.HandlerFunc(ShortenerHandler)
-				h.ServeHTTP(w, req)
-			} else {
+			case tfields.method == "POST":
+				switch {
+				case tfields.request == "/":
+					h := http.HandlerFunc(ShortenerHandler)
+					h.ServeHTTP(w, req)
+				case tfields.request == "/api/shorten":
+					h := http.HandlerFunc(ShortenApiHandler)
+					h.ServeHTTP(w, req)
+				}
+			case tfields.method == "PUT" || tfields.method == "DELETE":
 				h := http.HandlerFunc(MethodNotAllowedHandler)
 				h.ServeHTTP(w, req)
 			}
+			//if tfileds.method == "GET" {
+			//	h := http.HandlerFunc(GetURLHandler)
+			//	h.ServeHTTP(w, req)
+			//} else if tfileds.method == "POST" {
+			//	h := http.HandlerFunc(ShortenerHandler)
+			//	h.ServeHTTP(w, req)
+			//} else {
+			//	h := http.HandlerFunc(MethodNotAllowedHandler)
+			//	h.ServeHTTP(w, req)
+			//}
 
 			res := w.Result()
 
-			assert.Equal(t, tfileds.want.statusCode, res.StatusCode)
-			assert.Equal(t, tfileds.want.contentType, res.Header.Get("Content-Type"))
-			assert.Equal(t, tfileds.want.location, res.Header.Get("Location"))
+			assert.Equal(t, tfields.want.statusCode, res.StatusCode)
+			assert.Equal(t, tfields.want.contentType, res.Header.Get("Content-Type"))
+			assert.Equal(t, tfields.want.location, res.Header.Get("Location"))
 
 			respBody, err := ioutil.ReadAll(res.Body)
 			require.NoError(t, err)
 			err = res.Body.Close()
 			require.NoError(t, err)
 
-			assert.Equal(t, tfileds.want.response, string(respBody))
+			assert.Equal(t, tfields.want.response, string(respBody))
 		})
 	}
 }
@@ -74,20 +99,20 @@ func TestMethodNotAllowedHandler(t *testing.T) {
 }
 
 func TestShortenerHandler(t *testing.T) {
-	cfg := config.New()
 	testMap := make(map[string]tests)
-	testMap["Get shorten URL from origin URL. Request body is not empty."] = tests{
+	hastString := shorten.HashString([]byte(firstTestUrl))
+	testMap["Make shorten URL from origin URL. Request body is not empty."] = tests{
 		request:     "/",
-		requestBody: "http://endxivm.com/y1ryfyoiudul7",
+		requestBody: firstTestUrl,
 		method:      "POST",
 		want: want{
 			statusCode:  201,
-			response:    fmt.Sprintf("http://%s:%s/http://endxivm.com/y1ryf", cfg.IPPort.IP, cfg.IPPort.PORT),
+			response:    fmt.Sprintf("http://%s:%s/%s", cfg.IPPort.IP, cfg.IPPort.PORT, hastString),
 			contentType: "application/json",
 			location:    "",
 		},
 	}
-	testMap["Get shorten URL from origin URL. Request body is empty."] = tests{
+	testMap["Make shorten URL from origin URL. Request body is empty."] = tests{
 		request:     "/",
 		requestBody: "",
 		method:      "POST",
@@ -102,26 +127,60 @@ func TestShortenerHandler(t *testing.T) {
 
 }
 
+func TestShortenerApiHandler(t *testing.T) {
+	testMap := make(map[string]tests)
+	testJson := "{\"url\":\"http://test.com/y1ryfyoiu7\"}"
+	testInvalidJson := "{\"url\":\"http://endxivm.com/y1ry"
+	testResponse := "{\"result\":\"http://localhost:8080/181256504f20608a084c\"}"
+	//fmt.Println(testJson, "  ", testInvalidJson, "  ", testResponse)
+	testMap["Make shorten URL from origin URL with json response. Request body is not empty."] = tests{
+		request:     "/api/shorten",
+		requestBody: testJson,
+		method:      "POST",
+		want: want{
+			statusCode:  201,
+			response:    testResponse,
+			contentType: "application/json",
+			location:    "",
+		},
+	}
+	testMap["Make shorten URL from origin URL with json response. Request body is invalid."] = tests{
+		request:     "/api/shorten",
+		requestBody: testInvalidJson,
+		method:      "POST",
+		want: want{
+			statusCode:  400,
+			response:    "invalid request body\n",
+			contentType: "text/plain; charset=utf-8",
+			location:    "",
+		},
+	}
+	runTests(testMap, t)
+
+}
+
 func TestGetUrlHandler(t *testing.T) {
 	testMap := make(map[string]tests)
+	firstHastString := shorten.HashString([]byte(firstTestUrl))
+	secondHashString := shorten.HashString([]byte(secondTestUrl))
 	testMap["Get origin URL from shorten URL. Shorten URL already exists."] = tests{
-		request:     "/http://endxivm.com/y1ryf",
+		request:     "/" + firstHastString,
 		requestBody: "",
 		method:      "GET",
 		want: want{
 			statusCode:  307,
 			response:    "",
 			contentType: "application/json",
-			location:    "http://endxivm.com/y1ryfyoiudul7",
+			location:    firstTestUrl,
 		},
 	}
 	testMap["Get origin URL from shorten URL. Shorten URL doesn't exist."] = tests{
-		request:     "/http://endxivm.com/",
+		request:     "/" + secondHashString,
 		requestBody: "",
 		method:      "GET",
 		want: want{
 			statusCode:  404,
-			response:    "there are no URLs with ID: http://endxivm.com/\n",
+			response:    fmt.Sprintf("there are no URLs with ID: %s\n", secondHashString),
 			contentType: "text/plain; charset=utf-8",
 			location:    "",
 		},

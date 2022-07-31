@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/TsunamiProject/UrlShortener.git/internal/config"
@@ -19,6 +20,12 @@ type Urls interface {
 
 type UrlsTempStorage struct {
 	Urls sync.Map
+}
+type EncodeStruct struct {
+	Result string `json:"result"`
+}
+type DecodeStruct struct {
+	Url string `json:"url"`
 }
 
 func (u *UrlsTempStorage) Store(key string, value map[string]string) error {
@@ -60,11 +67,23 @@ func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Recieved request with method: %s from: %s",
 		r.Method, r.Host)
 	//calls saveUrlHandler on POST method
-	res, status, err := storeURL(r)
+	b, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	res, status, err := storeURL(b)
 	if err != nil {
 		log.Printf("Error: %s", err)
 		http.Error(w, err.Error(), status)
 		return
+	}
+
+	err = r.Body.Close()
+	if err != nil {
+		log.Printf("Error: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	//setting headers
 	w.Header().Set("content-type", "application/json")
@@ -80,6 +99,35 @@ func ShortenApiHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Recieved request with method: %s from: %s",
 		r.Method, r.Host)
 
+	b, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	res, status, err := urlDecoder(b)
+	if err != nil {
+		log.Printf("Error: %s", err)
+		http.Error(w, err.Error(), status)
+		return
+	}
+
+	result, status, err := urlEncoder(res)
+	if err != nil {
+		log.Printf("Error: %s", err)
+		http.Error(w, err.Error(), status)
+		return
+	}
+	log.Println(result)
+	//setting headers
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(status)
+	_, err = w.Write([]byte(result))
+	if err != nil {
+		log.Printf("Error: %s", err)
+		return
+	}
+
 }
 
 // GetURLHandler send origin url by short url in "Location" header
@@ -87,7 +135,8 @@ func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 	//calls getFullUrlHandler on GET method
 	log.Printf("Recieved request with method: %s from: %s with ID_PARAM: %s",
 		r.Method, r.Host, r.URL.String()[1:])
-	res, status, err := getFullURL(r)
+	reqURL := r.URL.String()
+	res, status, err := getFullURL(reqURL)
 	if err != nil {
 		http.Error(w, err.Error(), status)
 		log.Printf("Error: %s", err)
@@ -105,43 +154,59 @@ func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 //return short url from original url which must be in request body, status code and error
-func storeURL(r *http.Request) (string, int, error) {
+func storeURL(b []byte) (string, int, error) {
 	urlsMap := make(map[string]string)
-	b, err := io.ReadAll(r.Body)
-	if err != nil {
-		return "", http.StatusInternalServerError, err
-	}
+
 	if len(b) == 0 {
 		return "", http.StatusBadRequest, errors.New("request body is empty")
 	}
 
-	k, v := string(b), shorten.RandStringBytes(16)
+	k, v := string(b), shorten.HashString(b)
 	urlsMap[k] = v
 
 	shortUrls.Urls.Store(v, urlsMap)
 
-	err = r.Body.Close()
-	if err != nil {
-		return "", http.StatusInternalServerError, err
-	}
 	cfg := config.New()
 	res := fmt.Sprintf("http://%s:%s/%s", cfg.IPPort.IP, cfg.IPPort.PORT, urlsMap[k])
 
-	return res, http.StatusCreated, err
+	return res, http.StatusCreated, nil
 }
 
 //return original url by ID as URL param, status code and error
-func getFullURL(r *http.Request) (string, int, error) {
-	reqURL := r.URL.String()
-
-	if len(reqURL) <= 1 {
+func getFullURL(url string) (string, int, error) {
+	if len(url) <= 1 {
 		return "", http.StatusBadRequest, errors.New("missing parameter: ID")
 	}
 
-	v, err := shortUrls.Load(reqURL[1:])
+	v, err := shortUrls.Load(url[1:])
 	if err != nil {
 		return v, http.StatusNotFound, err
 	}
 
 	return v, http.StatusTemporaryRedirect, nil
+}
+
+func urlDecoder(b []byte) (string, int, error) {
+	var decodeStruct DecodeStruct
+
+	err := json.Unmarshal(b, &decodeStruct)
+	if err != nil {
+		return "", http.StatusBadRequest, errors.New("invalid request body")
+	}
+
+	res, status, err := storeURL([]byte(decodeStruct.Url))
+	if err != nil {
+		return "", status, err
+	}
+	return res, http.StatusCreated, nil
+}
+
+func urlEncoder(r string) ([]byte, int, error) {
+	encodeStruct := EncodeStruct{Result: r}
+	res, err := json.Marshal(encodeStruct)
+	if err != nil {
+		return []byte(""), http.StatusBadRequest, err
+	}
+
+	return res, http.StatusCreated, nil
 }
