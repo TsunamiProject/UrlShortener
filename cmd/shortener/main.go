@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/TsunamiProject/UrlShortener.git/internal/app"
 	"github.com/TsunamiProject/UrlShortener.git/internal/config"
 	"github.com/joho/godotenv"
@@ -25,6 +24,6 @@ func main() {
 	r := app.NewRouter()
 
 	log.Printf("Server started on %s", cfg.ServerAddress)
-	httpAddr := fmt.Sprintf("%s", cfg.ServerAddress)
+	httpAddr := cfg.ServerAddress
 	log.Fatal(http.ListenAndServe(httpAddr, r))
 }
