@@ -54,16 +54,6 @@ func runTests(tm map[string]tests, t *testing.T) {
 				h := http.HandlerFunc(MethodNotAllowedHandler)
 				h.ServeHTTP(w, req)
 			}
-			//if tfileds.method == "GET" {
-			//	h := http.HandlerFunc(GetURLHandler)
-			//	h.ServeHTTP(w, req)
-			//} else if tfileds.method == "POST" {
-			//	h := http.HandlerFunc(ShortenerHandler)
-			//	h.ServeHTTP(w, req)
-			//} else {
-			//	h := http.HandlerFunc(MethodNotAllowedHandler)
-			//	h.ServeHTTP(w, req)
-			//}
 
 			res := w.Result()
 
@@ -130,7 +120,7 @@ func TestShortenerApiHandler(t *testing.T) {
 	testMap := make(map[string]tests)
 	testJson := "{\"url\":\"http://test.com/y1ryfyoiu7\"}"
 	testInvalidJson := "{\"url\":\"http://endxivm.com/y1ry"
-	testResponse := "{\"result\":\"http://localhost:8080/181256504f20608a084c18a0a359b458536abde0\"}"
+	testResponse := "{\"result\":\"http://localhost:8080/687474703a2f2f746573742e636f6d2f7931727966796f697537\"}"
 	//fmt.Println(testJson, "  ", testInvalidJson, "  ", testResponse)
 	testMap["Make shorten URL from origin URL with json response. Request body is not empty."] = tests{
 		request:     "/api/shorten",
