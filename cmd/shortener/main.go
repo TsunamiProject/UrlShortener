@@ -23,7 +23,8 @@ func main() {
 	//Creating server instance
 	r := app.NewRouter()
 
-	log.Printf("Server started on %s", cfg.ServerAddress)
+	log.Printf("Server started on %s with BaseURL param: %s with file storage path: %s", cfg.ServerAddress,
+		cfg.BaseURL, cfg.FileStoragePath)
 	httpAddr := cfg.ServerAddress
 	log.Fatal(http.ListenAndServe(httpAddr, r))
 }
