@@ -28,7 +28,7 @@ type EncodeStruct struct {
 	Result string `json:"result"`
 }
 type DecodeStruct struct {
-	Url string `json:"url"`
+	URL string `json:"url"`
 }
 
 func (u *UrlsTempStorage) Store(key string, value map[string]string) error {
@@ -134,7 +134,7 @@ func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func ShortenApiHandler(w http.ResponseWriter, r *http.Request) {
+func ShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Recieved request with method: %s from: %s",
 		r.Method, r.Host)
 
@@ -246,7 +246,7 @@ func urlDecoder(b []byte) (string, int, error) {
 		return "", http.StatusBadRequest, errors.New("invalid request body")
 	}
 
-	res, status, err := storeURL([]byte(decodeStruct.Url))
+	res, status, err := storeURL([]byte(decodeStruct.URL))
 	if err != nil {
 		return "", status, err
 	}
