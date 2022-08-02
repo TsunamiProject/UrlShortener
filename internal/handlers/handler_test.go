@@ -47,7 +47,7 @@ func runTests(tm map[string]tests, t *testing.T) {
 					h := http.HandlerFunc(ShortenerHandler)
 					h.ServeHTTP(w, req)
 				case tfields.request == "/api/shorten":
-					h := http.HandlerFunc(ShortenApiHandler)
+					h := http.HandlerFunc(ShortenAPIHandler)
 					h.ServeHTTP(w, req)
 				}
 			case tfields.method == "PUT" || tfields.method == "DELETE":
