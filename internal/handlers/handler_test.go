@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/TsunamiProject/UrlShortener.git/internal/config"
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,7 +17,7 @@ const (
 	secondTestUrl = "http://test.com/"
 )
 
-var cfg = config.New()
+//var cfg = config.New()
 
 type want struct {
 	statusCode  int
@@ -100,14 +99,14 @@ func TestMethodNotAllowedHandler(t *testing.T) {
 
 func TestShortenerHandler(t *testing.T) {
 	testMap := make(map[string]tests)
-	hastString := shorten.HashString([]byte(firstTestUrl))
+	hashString := shorten.EncodeString([]byte(firstTestUrl))
 	testMap["Make shorten URL from origin URL. Request body is not empty."] = tests{
 		request:     "/",
 		requestBody: firstTestUrl,
 		method:      "POST",
 		want: want{
 			statusCode:  201,
-			response:    fmt.Sprintf("http://%s:%s/%s", cfg.IPPort.IP, cfg.IPPort.PORT, hastString),
+			response:    fmt.Sprintf("http://%s/%s", cfg.BaseUrl, hashString),
 			contentType: "application/json",
 			location:    "",
 		},
@@ -131,7 +130,7 @@ func TestShortenerApiHandler(t *testing.T) {
 	testMap := make(map[string]tests)
 	testJson := "{\"url\":\"http://test.com/y1ryfyoiu7\"}"
 	testInvalidJson := "{\"url\":\"http://endxivm.com/y1ry"
-	testResponse := "{\"result\":\"http://localhost:8080/181256504f20608a084c\"}"
+	testResponse := "{\"result\":\"http://localhost:8080/181256504f20608a084c18a0a359b458536abde0\"}"
 	//fmt.Println(testJson, "  ", testInvalidJson, "  ", testResponse)
 	testMap["Make shorten URL from origin URL with json response. Request body is not empty."] = tests{
 		request:     "/api/shorten",
@@ -161,10 +160,10 @@ func TestShortenerApiHandler(t *testing.T) {
 
 func TestGetUrlHandler(t *testing.T) {
 	testMap := make(map[string]tests)
-	firstHastString := shorten.HashString([]byte(firstTestUrl))
-	secondHashString := shorten.HashString([]byte(secondTestUrl))
+	firstHashString := shorten.EncodeString([]byte(firstTestUrl))
+	secondHashString := shorten.EncodeString([]byte(secondTestUrl))
 	testMap["Get origin URL from shorten URL. Shorten URL already exists."] = tests{
-		request:     "/" + firstHastString,
+		request:     "/" + firstHashString,
 		requestBody: "",
 		method:      "GET",
 		want: want{
