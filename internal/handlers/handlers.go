@@ -10,9 +10,9 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"reflect"
-	"strings"
 	"sync"
 )
 
@@ -59,38 +59,42 @@ func (u *UrlsTempStorage) Load(key string) (string, error) {
 var shortUrls UrlsTempStorage
 var cfg = config.New()
 
-func RestoreFields() {
+func RestoreFields() error {
 	if cfg.FileStoragePath != "" {
-		file, err := os.OpenFile(cfg.FileStoragePath, os.O_RDONLY, 0777)
+		file, err := os.OpenFile(cfg.FileStoragePath, os.O_CREATE|os.O_RDONLY, 0666)
 		if err != nil {
 			log.Printf("Error when opening file: %s", err)
+			return err
 		}
 
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			fmt.Println(scanner.Text())
-			shortPart := strings.Split(scanner.Text(), cfg.BaseURL+"/")
-			log.Println(string(shorten.DecodeString([]byte(shortPart[1]))))
-			log.Println(shortPart[1])
-			err = shortUrls.Store(shortPart[1],
-				map[string]string{string(shorten.DecodeString([]byte(shortPart[1]))): shortPart[1]})
+			tempURL, err := url.Parse(scanner.Text())
 			if err != nil {
-				return
+				log.Printf("Error while parsing url: %s", err)
+				return err
 			}
-
+			shortPart := tempURL.RequestURI()[1:]
+			err = shortUrls.Store(shortPart,
+				map[string]string{string(shorten.DecodeString([]byte(shortPart))): shortPart})
+			if err != nil {
+				return err
+			}
 		}
 
 		if err = scanner.Err(); err != nil {
 			log.Printf("Error while reading file: %s", err)
-			return
+			return err
 		}
 
 		err = file.Close()
 		if err != nil {
-			return
+			return err
 		}
-
 	}
+
+	return nil
 }
 
 // MethodNotAllowedHandler send http error if request method not allowed
@@ -102,7 +106,10 @@ func MethodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
 
 // ShortenerHandler send shorten url from full url which received from request body
 func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
-	RestoreFields()
+	//err := RestoreFields()
+	//if err != nil {
+	//	log.Println(err)
+	//}
 	log.Printf("Recieved request with method: %s from: %s",
 		r.Method, r.Host)
 	//calls saveUrlHandler on POST method
@@ -135,6 +142,7 @@ func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
+	//RestoreFields()
 	log.Printf("Recieved request with method: %s from: %s",
 		r.Method, r.Host)
 
@@ -203,7 +211,7 @@ func storeURL(b []byte) (string, int, error) {
 	urlsMap[k] = v
 
 	if cfg.FileStoragePath != "" {
-		file, err := os.OpenFile(cfg.FileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0777)
+		file, err := os.OpenFile(cfg.FileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
 			return "", http.StatusInternalServerError, nil
 		}
@@ -226,6 +234,7 @@ func storeURL(b []byte) (string, int, error) {
 
 //return original url by ID as URL param, status code and error
 func getFullURL(url string) (string, int, error) {
+	RestoreFields()
 	if len(url) <= 1 {
 		return "", http.StatusBadRequest, errors.New("missing parameter: ID")
 	}
