@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,7 +10,9 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"reflect"
+	"strings"
 	"sync"
 )
 
@@ -54,6 +57,41 @@ func (u *UrlsTempStorage) Load(key string) (string, error) {
 }
 
 var shortUrls UrlsTempStorage
+var cfg = config.New()
+
+func RestoreFields() {
+	if cfg.FileStoragePath != "" {
+		file, err := os.OpenFile(cfg.FileStoragePath, os.O_RDONLY, 0777)
+		if err != nil {
+			log.Printf("Error when opening file: %s", err)
+		}
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			fmt.Println(scanner.Text())
+			shortPart := strings.Split(scanner.Text(), "http://"+cfg.BaseUrl+"/")
+			log.Println(string(shorten.DecodeString([]byte(shortPart[1]))))
+			log.Println(shortPart[1])
+			err = shortUrls.Store(shortPart[1],
+				map[string]string{string(shorten.DecodeString([]byte(shortPart[1]))): shortPart[1]})
+			if err != nil {
+				return
+			}
+
+		}
+
+		if err = scanner.Err(); err != nil {
+			log.Printf("Error while reading file: %s", err)
+			return
+		}
+
+		err = file.Close()
+		if err != nil {
+			return
+		}
+
+	}
+}
 
 // MethodNotAllowedHandler send http error if request method not allowed
 func MethodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
@@ -64,6 +102,7 @@ func MethodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
 
 // ShortenerHandler send shorten url from full url which received from request body
 func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
+	RestoreFields()
 	log.Printf("Recieved request with method: %s from: %s",
 		r.Method, r.Host)
 	//calls saveUrlHandler on POST method
@@ -118,11 +157,10 @@ func ShortenApiHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), status)
 		return
 	}
-	log.Println(result)
 	//setting headers
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(status)
-	_, err = w.Write([]byte(result))
+	_, err = w.Write(result)
 	if err != nil {
 		log.Printf("Error: %s", err)
 		return
@@ -161,14 +199,28 @@ func storeURL(b []byte) (string, int, error) {
 		return "", http.StatusBadRequest, errors.New("request body is empty")
 	}
 
-	k, v := string(b), shorten.HashString(b)
+	k, v := string(b), shorten.EncodeString(b)
 	urlsMap[k] = v
 
+	if cfg.FileStoragePath != "" {
+		file, err := os.OpenFile(cfg.FileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0777)
+		if err != nil {
+			return "", http.StatusInternalServerError, nil
+		}
+		_, err = file.Write([]byte(fmt.Sprintf("http://%s/%s\n", cfg.BaseUrl, urlsMap[k])))
+		if err != nil {
+			return "", http.StatusInternalServerError, nil
+		}
+		err = file.Close()
+		if err != nil {
+			return "", http.StatusInternalServerError, nil
+		}
+		res := fmt.Sprintf("http://%s/%s", cfg.BaseUrl, urlsMap[k])
+		return res, http.StatusCreated, nil
+	}
+
 	shortUrls.Urls.Store(v, urlsMap)
-
-	cfg := config.New()
-	res := fmt.Sprintf("http://%s:%s/%s", cfg.IPPort.IP, cfg.IPPort.PORT, urlsMap[k])
-
+	res := fmt.Sprintf("http://%s/%s", cfg.BaseUrl, urlsMap[k])
 	return res, http.StatusCreated, nil
 }
 
