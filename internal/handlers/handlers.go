@@ -69,7 +69,7 @@ func RestoreFields() {
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			fmt.Println(scanner.Text())
-			shortPart := strings.Split(scanner.Text(), "http://"+cfg.BaseUrl+"/")
+			shortPart := strings.Split(scanner.Text(), cfg.BaseURL+"/")
 			log.Println(string(shorten.DecodeString([]byte(shortPart[1]))))
 			log.Println(shortPart[1])
 			err = shortUrls.Store(shortPart[1],
@@ -207,7 +207,7 @@ func storeURL(b []byte) (string, int, error) {
 		if err != nil {
 			return "", http.StatusInternalServerError, nil
 		}
-		_, err = file.Write([]byte(fmt.Sprintf("http://%s/%s\n", cfg.BaseUrl, urlsMap[k])))
+		_, err = file.Write([]byte(fmt.Sprintf("%s/%s\n", cfg.BaseURL, urlsMap[k])))
 		if err != nil {
 			return "", http.StatusInternalServerError, nil
 		}
@@ -215,12 +215,12 @@ func storeURL(b []byte) (string, int, error) {
 		if err != nil {
 			return "", http.StatusInternalServerError, nil
 		}
-		res := fmt.Sprintf("http://%s/%s", cfg.BaseUrl, urlsMap[k])
+		res := fmt.Sprintf("%s/%s", cfg.BaseURL, urlsMap[k])
 		return res, http.StatusCreated, nil
 	}
 
 	shortUrls.Urls.Store(v, urlsMap)
-	res := fmt.Sprintf("http://%s/%s", cfg.BaseUrl, urlsMap[k])
+	res := fmt.Sprintf("%s/%s", cfg.BaseURL, urlsMap[k])
 	return res, http.StatusCreated, nil
 }
 
