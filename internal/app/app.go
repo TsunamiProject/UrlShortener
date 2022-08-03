@@ -1,8 +1,10 @@
 package app
 
 import (
-	"github.com/TsunamiProject/UrlShortener.git/internal/handlers"
 	"github.com/go-chi/chi/v5"
+
+	"github.com/TsunamiProject/UrlShortener.git/internal/handlers"
+	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/middleware"
 )
 
 // NewRouter return router instance with handlers and error
@@ -14,6 +16,7 @@ func NewRouter() chi.Router {
 	//}
 	//Collecting router
 	router := chi.NewRouter()
+	router.Use(middleware.GzipRespWriteHandler, middleware.GzipReqParseHandler)
 	router.Get("/*", handlers.GetURLHandler)
 	router.Post("/", handlers.ShortenerHandler)
 	router.Post("/api/shorten", handlers.ShortenAPIHandler)
