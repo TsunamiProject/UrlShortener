@@ -10,6 +10,11 @@ import (
 	"io/ioutil"
 )
 
+const (
+	defaultServerAddress = "localhost:8080"
+	defaultBaseUrl       = "http://localhost:8080"
+)
+
 type Config struct {
 	ServerAddress   string `env:"SERVER_ADDRESS"`
 	BaseURL         string `env:"BASE_URL"`
@@ -23,24 +28,24 @@ func New() *Config {
 		log.Fatal("Error with collecting env params", err)
 	}
 
-	if len(config.ServerAddress) > 0 && len(config.ServerAddress) > 0 {
+	if len(config.ServerAddress) > 0 && len(config.BaseURL) > 0 {
 		err = validateConfig(&config)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
-		return &config
 	}
 
 	parseFlags(&config)
 
-	if len(config.ServerAddress) > 0 && len(config.ServerAddress) > 0 {
+	if len(config.ServerAddress) > 0 && len(config.BaseURL) > 0 {
 		err = validateConfig(&config)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
-		return &config
 	} else {
-		log.Fatal("Configuration params not found")
+		log.Println("Configuration params not found. Collecting config with default params.")
+		setDefaultConfig(&config)
+		return &config
 	}
 
 	return &config
@@ -67,7 +72,6 @@ func validateFilePath(filepath string) error {
 	}
 	_, err := os.Stat(filepath)
 	if err == nil {
-		log.Println(err)
 		return err
 	}
 
@@ -85,12 +89,12 @@ func validateFilePath(filepath string) error {
 
 func validateConfig(c *Config) error {
 	addrErr := validateURL(c.ServerAddress)
-	baseUrlErr := validateURL(c.BaseURL)
+	baseURLErr := validateURL(c.BaseURL)
 	fileStorageErr := validateFilePath(c.FileStoragePath)
 	if addrErr != nil {
 		return errors.New("wrong server address param")
 	}
-	if baseUrlErr != nil {
+	if baseURLErr != nil {
 		return errors.New("wrong base url param")
 	}
 	if fileStorageErr != nil {
@@ -114,4 +118,10 @@ func parseFlags(c *Config) {
 	c.ServerAddress = *addrFlag
 	c.BaseURL = *baseURLFlag
 	c.FileStoragePath = *fileStorageFlag
+}
+
+func setDefaultConfig(c *Config) {
+	c.ServerAddress = defaultServerAddress
+	c.BaseURL = defaultBaseUrl
+	c.FileStoragePath = "/tmp/test"
 }
