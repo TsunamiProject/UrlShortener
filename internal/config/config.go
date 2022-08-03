@@ -12,7 +12,7 @@ import (
 
 const (
 	defaultServerAddress = "localhost:8080"
-	defaultBaseUrl       = "http://localhost:8080"
+	defaultBaseURL       = "http://localhost:8080"
 )
 
 type Config struct {
@@ -122,6 +122,6 @@ func parseFlags(c *Config) {
 
 func setDefaultConfig(c *Config) {
 	c.ServerAddress = defaultServerAddress
-	c.BaseURL = defaultBaseUrl
+	c.BaseURL = defaultBaseURL
 	c.FileStoragePath = "/tmp/test"
 }
