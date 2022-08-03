@@ -1,11 +1,13 @@
 package main
 
 import (
-	"github.com/TsunamiProject/UrlShortener.git/internal/app"
-	"github.com/TsunamiProject/UrlShortener.git/internal/config"
-	"github.com/joho/godotenv"
 	"log"
 	"net/http"
+
+	"github.com/joho/godotenv"
+
+	"github.com/TsunamiProject/UrlShortener.git/internal/app"
+	"github.com/TsunamiProject/UrlShortener.git/internal/config"
 )
 
 func init() {
