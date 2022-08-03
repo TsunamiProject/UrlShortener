@@ -234,8 +234,6 @@ func storeURL(b []byte) (string, int, error) {
 		if err != nil {
 			return "", http.StatusInternalServerError, nil
 		}
-		res := fmt.Sprintf("%s/%s", cfg.BaseURL, urlsMap[k])
-		return res, http.StatusCreated, nil
 	}
 
 	shortUrls.Urls.Store(v, urlsMap)
