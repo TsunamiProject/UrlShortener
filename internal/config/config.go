@@ -1,95 +1,117 @@
 package config
 
 import (
-	"github.com/caarlos0/env/v6"
 	"log"
 	"os"
-	"strconv"
+	"github.com/caarlos0/env/v6"
+	"net/url"
+	"errors"
+	"github.com/spf13/pflag"
+	"io/ioutil"
 )
 
 type Config struct {
-	ServerAddress   string `env:"SERVER_ADDRESS" envDefault:"localhost:8080"`
-	BaseURL         string `env:"BASE_URL" envDefault:"http://localhost:8080"`
+	ServerAddress   string `env:"SERVER_ADDRESS"`
+	BaseURL         string `env:"BASE_URL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 }
 
 func New() *Config {
 	var config Config
-	//flag.Func("-a", "Server address", func(s string) error {
-	//	hp := strings.Split(s, ":")
-	//	if len(hp) != 2 {
-	//		return errors.New("need address in a form host:port")
-	//	}
-	//	config.ServerAddress = s
-	//	return nil
-	//})
-
-	//flag.Func("-b", "Base url of short url", func(s string) error {
-	//
-	//})
-	//flag.Func("-f", "File storage path", f)
-	//
-	//flag.Var(config.BaseUrl, "b", "Base url of short url")
-	//flag.Var(config.FileStoragePath, "f", "File storage path")
-	//
-	//flag.Parse()
-	//fmt.Println(config.ServerAddress)
-	//fmt.Println(config.BaseUrl)
-	//fmt.Println(config.FileStoragePath)
-
 	err := env.Parse(&config)
 	if err != nil {
-		log.Fatal("Err with collecting app config", err)
+		log.Fatal("Error with collecting env params", err)
+	}
+
+	if len(config.ServerAddress) > 0 && len(config.ServerAddress) > 0 {
+		err = validateConfig(&config)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return &config
+	}
+
+	parseFlags(&config)
+
+	if len(config.ServerAddress) > 0 && len(config.ServerAddress) > 0 {
+		err = validateConfig(&config)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return &config
+	} else {
+		log.Fatal("Configuration params not found")
 	}
 
 	return &config
 }
 
-//return config param from .env if exists or default value or default
-func getEnv(key string, defaultVal string) string {
-	//search for a parameter in .env file
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
-	log.Printf("%s value not found in .env file\n", key)
-
-	return defaultVal
-}
-
-//return the converted from string bool param from .env if exists or default
-func getEnvBool(name string, defaultVal bool) bool {
-	envVal := getEnv(name, "")
-	if val, err := strconv.ParseBool(envVal); err == nil {
-		return val
+//parse url and return nil if url is valid or error
+func validateURL(s string) error {
+	_, err := url.ParseRequestURI(s)
+	if err != nil {
+		return err
 	}
 
-	return defaultVal
+	u, err := url.Parse(s)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return err
+	}
+	return nil
 }
 
-//func getFlags() {
-//	flag.Var(addr, "addr", "Net address host:port")
-//	flag.Var(addr, "addr", "Net address host:port")
-//	flag.Var(addr, "addr", "Net address host:port")
-//
-//}
+//parse filepath and return nil if exist and error if not
+func validateFilePath(filepath string) error {
+	if filepath == "" {
+		return nil
+	}
+	_, err := os.Stat(filepath)
+	if err == nil {
+		log.Println(err)
+		return err
+	}
 
-//func (a Config) String() string {
-//	return a.ServerAddress
-//}
-//
-//func (a *Config) Set(s string) error {
-//	hp := strings.Split(s, ":")
-//	if len(hp) != 2 {
-//		return errors.New("Need address in a form host:port")
-//	}
-//	a.ServerAddress = s
-//	a.BaseUrl = hp[0]
-//	a.FileStoragePath = hp[0]
-//	//port, err := strconv.Atoi(hp[1])
-//	//if err != nil {
-//	//	return err
-//	//}
-//	//a.Host = hp[0]
-//	//a.Port = port
-//	return nil
-//}
+	//trying to create file by filepath
+	//if not - dir doesn't exist
+	var d []byte
+	err = ioutil.WriteFile(filepath, d, 0644)
+	if err == nil {
+		os.Remove(filepath)
+		return err
+	}
+
+	return err
+}
+
+func validateConfig(c *Config) error {
+	addrErr := validateURL(c.ServerAddress)
+	baseUrlErr := validateURL(c.BaseURL)
+	fileStorageErr := validateFilePath(c.FileStoragePath)
+	if addrErr != nil {
+		return errors.New("wrong server address param")
+	}
+	if baseUrlErr != nil {
+		return errors.New("wrong base url param")
+	}
+	if fileStorageErr != nil {
+		return errors.New("wrong file storage path (dir doesnt exist)")
+	}
+	return nil
+}
+
+//collect config struct with flag values
+func parseFlags(c *Config) {
+	flagSet := pflag.FlagSet{}
+	addrFlag := flagSet.StringP("-addr", "a", "", "Server address with format: host:port")
+	baseURLFlag := flagSet.StringP("-baseurl", "b", "", "Base url of short urls")
+	fileStorageFlag := flagSet.StringP("-fstorage", "f", "", "File storage path")
+
+	err := flagSet.Parse(os.Args[1:])
+	if err != nil {
+		log.Fatal("Error while parsing sys Args")
+	}
+
+	c.ServerAddress = *addrFlag
+	c.BaseURL = *baseURLFlag
+	c.FileStoragePath = *fileStorageFlag
+}
