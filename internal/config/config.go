@@ -1,13 +1,14 @@
 package config
 
 import (
-	"log"
-	"os"
-	"net/url"
 	"errors"
-	"github.com/spf13/pflag"
 	"io/ioutil"
+	"log"
+	"net/url"
+	"os"
+
 	"github.com/caarlos0/env/v6"
+	"github.com/spf13/pflag"
 )
 
 const (
