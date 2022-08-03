@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/TsunamiProject/UrlShortener.git/internal/config"
-	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
 	"io"
 	"log"
 	"net/http"
@@ -14,6 +12,9 @@ import (
 	"os"
 	"reflect"
 	"sync"
+
+	"github.com/TsunamiProject/UrlShortener.git/internal/config"
+	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
 )
 
 type Urls interface {
@@ -29,6 +30,12 @@ type EncodeStruct struct {
 }
 type DecodeStruct struct {
 	URL string `json:"url"`
+}
+
+func init() {
+	if err := RestoreFields(); err != nil {
+		log.Println(err)
+	}
 }
 
 func (u *UrlsTempStorage) Store(key string, value map[string]string) error {
@@ -59,6 +66,7 @@ func (u *UrlsTempStorage) Load(key string) (string, error) {
 var shortUrls UrlsTempStorage
 var cfg = config.New()
 
+//RestoreFields collecting Urls struct from storage file if exists
 func RestoreFields() error {
 	if cfg.FileStoragePath != "" {
 		file, err := os.OpenFile(cfg.FileStoragePath, os.O_CREATE|os.O_RDONLY, 0666)
@@ -69,7 +77,7 @@ func RestoreFields() error {
 
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
-			fmt.Println(scanner.Text())
+			log.Println(scanner.Text())
 			tempURL, err := url.Parse(scanner.Text())
 			if err != nil {
 				log.Printf("Error while parsing url: %s", err)
@@ -84,7 +92,7 @@ func RestoreFields() error {
 		}
 
 		if err = scanner.Err(); err != nil {
-			log.Printf("Error while reading file: %s", err)
+			log.Printf("Error while reading storage file: %s", err)
 			return err
 		}
 
@@ -106,14 +114,15 @@ func MethodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
 
 // ShortenerHandler send shorten url from full url which received from request body
 func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
-	//err := RestoreFields()
-	//if err != nil {
-	//	log.Println(err)
-	//}
 	log.Printf("Recieved request with method: %s from: %s",
 		r.Method, r.Host)
 	//calls saveUrlHandler on POST method
 	b, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	err = r.Body.Close()
 	if err != nil {
 		log.Printf("Error: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -126,11 +135,6 @@ func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = r.Body.Close()
-	if err != nil {
-		log.Printf("Error: %s", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
 	//setting headers
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(status)
@@ -141,8 +145,8 @@ func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ShortenAPIHandler send shorten url with json format from full url which received from request body
 func ShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
-	//RestoreFields()
 	log.Printf("Recieved request with method: %s from: %s",
 		r.Method, r.Host)
 
@@ -152,6 +156,13 @@ func ShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	err = r.Body.Close()
+	if err != nil {
+		log.Printf("Error: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
 	res, status, err := urlDecoder(b)
 	if err != nil {
 		log.Printf("Error: %s", err)
@@ -199,7 +210,7 @@ func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//return short url from original url which must be in request body, status code and error
+//storeURL return short url from original url which must be in request body, status code and error
 func storeURL(b []byte) (string, int, error) {
 	urlsMap := make(map[string]string)
 
@@ -232,9 +243,8 @@ func storeURL(b []byte) (string, int, error) {
 	return res, http.StatusCreated, nil
 }
 
-//return original url by ID as URL param, status code and error
+//getFullURL return original url by ID as URL param, status code and error
 func getFullURL(url string) (string, int, error) {
-	RestoreFields()
 	if len(url) <= 1 {
 		return "", http.StatusBadRequest, errors.New("missing parameter: ID")
 	}
