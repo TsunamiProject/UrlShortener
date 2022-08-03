@@ -3,11 +3,11 @@ package config
 import (
 	"log"
 	"os"
-	"github.com/caarlos0/env/v6"
 	"net/url"
 	"errors"
 	"github.com/spf13/pflag"
 	"io/ioutil"
+	"github.com/caarlos0/env/v6"
 )
 
 const (
@@ -19,37 +19,107 @@ const (
 type Config struct {
 	ServerAddress   string `env:"SERVER_ADDRESS"`
 	BaseURL         string `env:"BASE_URL"`
-	FileStoragePath string `env:"FILE_STORAGE_PATH" envDefault:"/tmp/test"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 }
 
+//func New() *Config {
+//	var config Config
+//	err := env.Parse(&config)
+//	if err != nil {
+//		log.Fatal("Error with collecting env params", err)
+//	}
+//
+//	if len(config.ServerAddress) > 0 && len(config.BaseURL) > 0 {
+//		err = validateConfig(&config)
+//		if err != nil {
+//			log.Println(err)
+//		}
+//	}
+//
+//	parseFlags(&config)
+//
+//	if len(config.ServerAddress) > 0 && len(config.BaseURL) > 0 {
+//		err = validateConfig(&config)
+//		if err != nil {
+//			log.Println(err)
+//		}
+//	} else {
+//		log.Println("Configuration params not found. Collecting config with default params.")
+//		setDefaultConfig(&config)
+//		return &config
+//	}
+//
+//	return &config
+//}
+
 func New() *Config {
-	var config Config
-	err := env.Parse(&config)
+	var flagConfig Config
+	var envConfig Config
+	var resultConfig Config
+
+	parseFlags(&flagConfig)
+
+	err := env.Parse(&envConfig)
 	if err != nil {
 		log.Fatal("Error with collecting env params", err)
 	}
 
-	if len(config.ServerAddress) > 0 && len(config.BaseURL) > 0 {
-		err = validateConfig(&config)
+	if len(envConfig.ServerAddress) > 0 {
+		err = validateURL(envConfig.ServerAddress)
 		if err != nil {
-			log.Println(err)
+			log.Println("Invalid server address param from env")
 		}
+		resultConfig.ServerAddress = envConfig.ServerAddress
+	} else {
+		err = validateURL(flagConfig.ServerAddress)
+		if err != nil {
+			log.Println("Invalid server address param from flag value")
+		}
+		resultConfig.ServerAddress = flagConfig.ServerAddress
 	}
 
-	parseFlags(&config)
+	if len(envConfig.BaseURL) > 0 {
+		err = validateURL(envConfig.BaseURL)
+		if err != nil {
+			log.Println("Invalid base url param from env")
+		}
+		resultConfig.BaseURL = envConfig.BaseURL
+	} else {
+		err = validateURL(flagConfig.BaseURL)
+		if err != nil {
+			log.Println("Invalid base url param from flag value")
+		}
+		resultConfig.BaseURL = flagConfig.BaseURL
+	}
 
-	if len(config.ServerAddress) > 0 && len(config.BaseURL) > 0 {
-		err = validateConfig(&config)
+	if len(envConfig.FileStoragePath) > 0 {
+		err = validateFilePath(envConfig.FileStoragePath)
+		if err != nil {
+			log.Println("Invalid file storage path param from env")
+		}
+		resultConfig.FileStoragePath = envConfig.FileStoragePath
+	} else {
+		err = validateFilePath(flagConfig.FileStoragePath)
+		if err != nil {
+			log.Println("Invalid file storage path param from flag value")
+		}
+		resultConfig.FileStoragePath = flagConfig.FileStoragePath
+	}
+
+	log.Println(envConfig.FileStoragePath, flagConfig.FileStoragePath)
+
+	if len(resultConfig.ServerAddress) > 0 && len(resultConfig.BaseURL) > 0 {
+		err = validateConfig(&resultConfig)
 		if err != nil {
 			log.Println(err)
 		}
 	} else {
 		log.Println("Configuration params not found. Collecting config with default params.")
-		setDefaultConfig(&config)
-		return &config
+		setDefaultConfig(&resultConfig)
+		return &resultConfig
 	}
 
-	return &config
+	return &resultConfig
 }
 
 //parse url and return nil if url is valid or error
@@ -68,7 +138,7 @@ func validateURL(s string) error {
 
 //parse filepath and return nil if exist and error if not
 func validateFilePath(filepath string) error {
-	if filepath == "" {
+	if len(filepath) == 0 {
 		return nil
 	}
 	_, err := os.Stat(filepath)
