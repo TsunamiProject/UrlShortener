@@ -70,12 +70,14 @@ func New() *Config {
 			log.Println("Invalid server address param from env")
 		}
 		resultConfig.ServerAddress = envConfig.ServerAddress
-	} else {
-		err = validateURL(flagConfig.ServerAddress)
+	} else if len(flagConfig.ServerAddress) > 0 {
 		if err != nil {
 			log.Println("Invalid server address param from flag value")
 		}
 		resultConfig.ServerAddress = flagConfig.ServerAddress
+	} else {
+		log.Println("Server address param not found. Collecting config with default value.")
+		resultConfig.ServerAddress = defaultServerAddress
 	}
 
 	if len(envConfig.BaseURL) > 0 {
@@ -84,12 +86,15 @@ func New() *Config {
 			log.Println("Invalid base url param from env")
 		}
 		resultConfig.BaseURL = envConfig.BaseURL
-	} else {
+	} else if len(flagConfig.BaseURL) > 0 {
 		err = validateURL(flagConfig.BaseURL)
 		if err != nil {
 			log.Println("Invalid base url param from flag value")
 		}
 		resultConfig.BaseURL = flagConfig.BaseURL
+	} else {
+		log.Println("Base url param not found. Collecting config with default value.")
+		resultConfig.BaseURL = defaultBaseURL
 	}
 
 	if len(envConfig.FileStoragePath) > 0 {
@@ -98,25 +103,15 @@ func New() *Config {
 			log.Println("Invalid file storage path param from env")
 		}
 		resultConfig.FileStoragePath = envConfig.FileStoragePath
-	} else {
+	} else if len(flagConfig.FileStoragePath) > 0 {
 		err = validateFilePath(flagConfig.FileStoragePath)
 		if err != nil {
 			log.Println("Invalid file storage path param from flag value")
 		}
 		resultConfig.FileStoragePath = flagConfig.FileStoragePath
-	}
-
-	log.Println(envConfig.FileStoragePath, flagConfig.FileStoragePath)
-
-	if len(resultConfig.ServerAddress) > 0 && len(resultConfig.BaseURL) > 0 {
-		err = validateConfig(&resultConfig)
-		if err != nil {
-			log.Println(err)
-		}
 	} else {
-		log.Println("Configuration params not found. Collecting config with default params.")
-		setDefaultConfig(&resultConfig)
-		return &resultConfig
+		log.Println("File storage path param not found. Collecting config with default value.")
+		resultConfig.FileStoragePath = defaultFileStoragePath
 	}
 
 	return &resultConfig
