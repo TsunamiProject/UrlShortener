@@ -2,14 +2,16 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
 )
 
 const (
