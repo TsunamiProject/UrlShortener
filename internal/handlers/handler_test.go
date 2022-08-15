@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -11,13 +12,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/middleware"
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
 )
 
 const (
 	firstTestURL  = "http://endxivm.com/y1ryfyoiudul7"
 	secondTestURL = "http://test.com/"
+	thirdTestURL  = "http://really.com/zxc"
 )
+
+var cookieObj = &middleware.Cookier{}
+var testCookie, _ = middleware.CreateNewCookie(cookieObj)
 
 //var cfg = config.New()
 
@@ -39,10 +45,18 @@ func runTests(tm map[string]tests, t *testing.T) {
 		t.Run(test, func(t *testing.T) {
 			req := httptest.NewRequest(tfields.method, tfields.request, strings.NewReader(tfields.requestBody))
 			w := httptest.NewRecorder()
+			http.SetCookie(w, testCookie)
+			req.AddCookie(testCookie)
 			switch {
 			case tfields.method == "GET":
-				h := http.HandlerFunc(GetURLHandler)
-				h.ServeHTTP(w, req)
+				switch {
+				case tfields.request != "/api/user/urls":
+					h := http.HandlerFunc(GetURLHandler)
+					h.ServeHTTP(w, req)
+				case tfields.request == "/api/user/urls":
+					h := http.HandlerFunc(GetApiUserURLHandler)
+					h.ServeHTTP(w, req)
+				}
 			case tfields.method == "POST":
 				switch {
 				case tfields.request == "/":
@@ -91,19 +105,31 @@ func TestMethodNotAllowedHandler(t *testing.T) {
 
 func TestShortenerHandler(t *testing.T) {
 	testMap := make(map[string]tests)
-	hashString := shorten.EncodeString([]byte(firstTestURL))
-	testMap["Make shorten URL from origin URL. Request body is not empty."] = tests{
+	hashStringFirstURL := shorten.EncodeString([]byte(firstTestURL))
+	hashStringThirdURL := shorten.EncodeString([]byte(thirdTestURL))
+	testMap["#1 Make shorten URL from origin URL. Request body is not empty."] = tests{
 		request:     "/",
 		requestBody: firstTestURL,
 		method:      "POST",
 		want: want{
 			statusCode:  201,
-			response:    fmt.Sprintf("%s/%s", cfg.BaseURL, hashString),
+			response:    fmt.Sprintf("%s/%s", cfg.BaseURL, hashStringFirstURL),
 			contentType: "application/json",
 			location:    "",
 		},
 	}
-	testMap["Make shorten URL from origin URL. Request body is empty."] = tests{
+	testMap["#2 Make shorten URL from origin URL. Request body is not empty."] = tests{
+		request:     "/",
+		requestBody: thirdTestURL,
+		method:      "POST",
+		want: want{
+			statusCode:  201,
+			response:    fmt.Sprintf("%s/%s", cfg.BaseURL, hashStringThirdURL),
+			contentType: "application/json",
+			location:    "",
+		},
+	}
+	testMap["#3 Make shorten URL from origin URL. Request body is empty."] = tests{
 		request:     "/",
 		requestBody: "",
 		method:      "POST",
@@ -115,16 +141,14 @@ func TestShortenerHandler(t *testing.T) {
 		},
 	}
 	runTests(testMap, t)
-
 }
 
 func TestShortenerApiHandler(t *testing.T) {
 	testMap := make(map[string]tests)
-	testJSON := "{\"url\":\"http://test.com/y1ryfyoiu7\"}"
+	testJSON := "{\"url\":\"http://test.com/\"}"
 	testInvalidJSON := "{\"url\":\"http://endxivm.com/y1ry"
-	testResponse := "{\"result\":\"http://localhost:8080/687474703a2f2f746573742e636f6d2f7931727966796f697537\"}"
-	//fmt.Println(testJson, "  ", testInvalidJson, "  ", testResponse)
-	testMap["Make shorten URL from origin URL with json response. Request body is not empty."] = tests{
+	testResponse := "{\"result\":\"http://localhost:8080/687474703a2f2f746573742e636f6d2f\"}"
+	testMap["#1 Make shorten URL from origin URL with json response. Request body is not empty."] = tests{
 		request:     "/api/shorten",
 		requestBody: testJSON,
 		method:      "POST",
@@ -135,7 +159,7 @@ func TestShortenerApiHandler(t *testing.T) {
 			location:    "",
 		},
 	}
-	testMap["Make shorten URL from origin URL with json response. Request body is invalid."] = tests{
+	testMap["#2 Make shorten URL from origin URL with json response. Request body is invalid."] = tests{
 		request:     "/api/shorten",
 		requestBody: testInvalidJSON,
 		method:      "POST",
@@ -153,8 +177,8 @@ func TestShortenerApiHandler(t *testing.T) {
 func TestGetUrlHandler(t *testing.T) {
 	testMap := make(map[string]tests)
 	firstHashString := shorten.EncodeString([]byte(firstTestURL))
-	secondHashString := shorten.EncodeString([]byte(secondTestURL))
-	testMap["Get origin URL from shorten URL. Shorten URL already exists."] = tests{
+	secondHashString := shorten.EncodeString([]byte("zhopa"))
+	testMap["#1 Get origin URL from shorten URL. Shorten URL already exists."] = tests{
 		request:     "/" + firstHashString,
 		requestBody: "",
 		method:      "GET",
@@ -165,7 +189,7 @@ func TestGetUrlHandler(t *testing.T) {
 			location:    firstTestURL,
 		},
 	}
-	testMap["Get origin URL from shorten URL. Shorten URL doesn't exist."] = tests{
+	testMap["#2 Get origin URL from shorten URL. Shorten URL doesn't exist."] = tests{
 		request:     "/" + secondHashString,
 		requestBody: "",
 		method:      "GET",
@@ -176,5 +200,46 @@ func TestGetUrlHandler(t *testing.T) {
 			location:    "",
 		},
 	}
+	runTests(testMap, t)
+}
+
+func TestGetUserUrlsHandler(t *testing.T) {
+	testMap := make(map[string]tests)
+	firstHashString := shorten.EncodeString([]byte(firstTestURL))
+	secondHashString := shorten.EncodeString([]byte(secondTestURL))
+	thirdHashString := shorten.EncodeString([]byte(thirdTestURL))
+	var testResSlice []UrlsWithAuth
+	testResSlice = append(testResSlice, UrlsWithAuth{
+		ShortURL:    fmt.Sprintf("%s/%s", cfg.BaseURL, firstHashString),
+		OriginalURL: firstTestURL,
+	}, UrlsWithAuth{
+		ShortURL:    fmt.Sprintf("%s/%s", cfg.BaseURL, thirdHashString),
+		OriginalURL: thirdTestURL,
+	}, UrlsWithAuth{
+		ShortURL:    fmt.Sprintf("%s/%s", cfg.BaseURL, secondHashString),
+		OriginalURL: secondTestURL,
+	})
+	marshalledResSlice, _ := json.Marshal(testResSlice)
+	testMap["#1 Get User urls by cookie"] = tests{
+		request:     "/api/user/urls",
+		requestBody: "",
+		method:      "GET",
+		want: want{
+			statusCode:  200,
+			response:    string(marshalledResSlice),
+			contentType: "application/json",
+		},
+	}
+	//testMap["Get origin URL from shorten URL. Shorten URL doesn't exist."] = tests{
+	//	request:     "/" + secondHashString,
+	//	requestBody: "",
+	//	method:      "GET",
+	//	want: want{
+	//		statusCode:  404,
+	//		response:    fmt.Sprintf("there are no URLs with ID: %s\n", secondHashString),
+	//		contentType: "text/plain; charset=utf-8",
+	//		location:    "",
+	//	},
+	//}
 	runTests(testMap, t)
 }
