@@ -237,7 +237,7 @@ func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func GetApiUserURLHandler(w http.ResponseWriter, r *http.Request) {
+func GetAPIUserURLHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Recieved request with method: %s from: %s with ID_PARAM: %s",
 		r.Method, r.Host, r.URL.String()[1:])
 

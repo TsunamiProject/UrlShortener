@@ -20,7 +20,7 @@ func NewRouter() chi.Router {
 	router.Use(middleware.GzipRespWriteHandler, middleware.GzipReqParseHandler)
 	router.Use(middleware.CookieHandler)
 	router.Get("/*", handlers.GetURLHandler)
-	router.Get("/api/user/urls", handlers.GetApiUserURLHandler)
+	router.Get("/api/user/urls", handlers.GetAPIUserURLHandler)
 	router.Post("/", handlers.ShortenerHandler)
 	router.Post("/api/shorten", handlers.ShortenAPIHandler)
 	router.Put("/{}", handlers.MethodNotAllowedHandler)

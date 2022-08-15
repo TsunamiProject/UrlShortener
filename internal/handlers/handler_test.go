@@ -54,7 +54,7 @@ func runTests(tm map[string]tests, t *testing.T) {
 					h := http.HandlerFunc(GetURLHandler)
 					h.ServeHTTP(w, req)
 				case tfields.request == "/api/user/urls":
-					h := http.HandlerFunc(GetApiUserURLHandler)
+					h := http.HandlerFunc(GetAPIUserURLHandler)
 					h.ServeHTTP(w, req)
 				}
 			case tfields.method == "POST":
