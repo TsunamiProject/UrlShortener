@@ -32,6 +32,15 @@ type DecodeStruct struct {
 	URL string `json:"url"`
 }
 
+type UrlsWithAuth struct {
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
+}
+
+type UrlsWithAuthTempStorage struct {
+	UrlsStorage sync.Map
+}
+
 func init() {
 	if err := RestoreFields(); err != nil {
 		log.Println(err)
@@ -64,6 +73,7 @@ func (u *UrlsTempStorage) Load(key string) (string, error) {
 }
 
 var shortUrls UrlsTempStorage
+var urlsWithAuth UrlsWithAuthTempStorage
 var cfg = config.New()
 
 //RestoreFields collecting Urls struct from storage file if exists
@@ -114,14 +124,14 @@ func MethodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
 
 // ShortenerHandler send shorten url from full url which received from request body
 func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Recieved request with method: %s from: %s",
-		r.Method, r.Host)
 	//calls saveUrlHandler on POST method
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+	log.Printf("Recieved request with method: %s from: %s with r.body: %s",
+		r.Method, r.Host, string(b))
 	err = r.Body.Close()
 	if err != nil {
 		log.Printf("Error: %s", err)
@@ -133,6 +143,18 @@ func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error: %s", err)
 		http.Error(w, err.Error(), status)
 		return
+	}
+
+	authCookie, err := r.Cookie("auth")
+	if err != nil {
+		log.Printf("Error: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	} else {
+		err = storeURLsWithAuth(b, authCookie.Value)
+		if err != nil {
+			log.Printf("Error: %s", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 
 	//setting headers
@@ -147,15 +169,14 @@ func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 
 // ShortenAPIHandler send shorten url with json format from full url which received from request body
 func ShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Recieved request with method: %s from: %s",
-		r.Method, r.Host)
-
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	log.Printf("Recieved request with method: %s from: %s with r.body: %s",
+		r.Method, r.Host, string(b))
 
 	err = r.Body.Close()
 	if err != nil {
@@ -163,7 +184,13 @@ func ShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	res, status, err := urlDecoder(b)
+	authCookie, err := r.Cookie("auth")
+	if err != nil {
+		log.Printf("Error: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	res, status, err := urlDecoder(b, authCookie.Value)
 	if err != nil {
 		log.Printf("Error: %s", err)
 		http.Error(w, err.Error(), status)
@@ -210,6 +237,61 @@ func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func GetApiUserURLHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Recieved request with method: %s from: %s with ID_PARAM: %s",
+		r.Method, r.Host, r.URL.String()[1:])
+
+	authCookie, err := r.Cookie("auth")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNoContent)
+	}
+	res, err := urlsWithAuth.getUserURLs(authCookie.Value)
+	if len(res) == 0 {
+		http.Error(w, err.Error(), http.StatusNoContent)
+	}
+	w.Header().Set("content-type", "application/json")
+	//w.Header().Set("Location", res)
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write(res)
+	if err != nil {
+		log.Printf("Error: %s", err)
+		return
+	}
+
+}
+
+func (u *UrlsWithAuthTempStorage) getUserURLs(authCookie string) ([]byte, error) {
+	res, _ := urlsWithAuth.UrlsStorage.Load(authCookie)
+	if res == nil {
+		return []byte(""), errors.New("urls not found")
+	}
+
+	temp, _ := json.Marshal(res)
+	urlsWithAuthMapForMarshalling := make(map[string][]map[string]string)
+	err := json.Unmarshal(temp, &urlsWithAuthMapForMarshalling)
+	if err != nil {
+		return []byte(""), err
+	}
+	var toMarshallList []UrlsWithAuth
+	for i := 0; i < len(urlsWithAuthMapForMarshalling[authCookie]); i++ {
+		iter := reflect.ValueOf(urlsWithAuthMapForMarshalling[authCookie][i]).MapRange()
+		tempUrlsWithAuth := UrlsWithAuth{
+			ShortURL:    "",
+			OriginalURL: "",
+		}
+		for iter.Next() {
+			tempUrlsWithAuth.OriginalURL = iter.Key().String()
+			tempUrlsWithAuth.ShortURL = fmt.Sprintf("%s/%s", cfg.BaseURL, iter.Value().String())
+		}
+		toMarshallList = append(toMarshallList, tempUrlsWithAuth)
+	}
+	resp, err := json.Marshal(toMarshallList)
+	if err != nil {
+		return []byte(""), err
+	}
+	return resp, nil
+}
+
 //storeURL return short url from original url which must be in request body, status code and error
 func storeURL(b []byte) (string, int, error) {
 	urlsMap := make(map[string]string)
@@ -241,6 +323,34 @@ func storeURL(b []byte) (string, int, error) {
 	return res, http.StatusCreated, nil
 }
 
+func storeURLsWithAuth(b []byte, authCookieValue string) error {
+	urlsWithAuthMap := make(map[string][]map[string]string)
+	urlsWithAuthMapForMarshalling := make(map[string][]map[string]string)
+	res, _ := urlsWithAuth.UrlsStorage.Load(authCookieValue)
+	temp, _ := json.Marshal(res)
+	err := json.Unmarshal(temp, &urlsWithAuthMapForMarshalling)
+	if err != nil {
+		return err
+	}
+
+	if len(b) == 0 {
+		return errors.New("request body is empty")
+	}
+
+	k, v := string(b), shorten.EncodeString(b)
+
+	urlsWithAuth.UrlsStorage.Delete(authCookieValue)
+
+	for i := 0; i < len(urlsWithAuthMapForMarshalling[authCookieValue]); i++ {
+		urlsWithAuthMap[authCookieValue] = append(urlsWithAuthMap[authCookieValue],
+			urlsWithAuthMapForMarshalling[authCookieValue][i])
+	}
+
+	urlsWithAuthMap[authCookieValue] = append(urlsWithAuthMap[authCookieValue], map[string]string{k: v})
+	urlsWithAuth.UrlsStorage.Store(authCookieValue, urlsWithAuthMap)
+	return nil
+}
+
 //getFullURL return original url by ID as URL param, status code and error
 func getFullURL(url string) (string, int, error) {
 	if len(url) <= 1 {
@@ -255,7 +365,7 @@ func getFullURL(url string) (string, int, error) {
 	return v, http.StatusTemporaryRedirect, nil
 }
 
-func urlDecoder(b []byte) (string, int, error) {
+func urlDecoder(b []byte, cookieValue string) (string, int, error) {
 	var decodeStruct DecodeStruct
 
 	err := json.Unmarshal(b, &decodeStruct)
@@ -267,6 +377,11 @@ func urlDecoder(b []byte) (string, int, error) {
 	if err != nil {
 		return "", status, err
 	}
+	err = storeURLsWithAuth([]byte(decodeStruct.URL), cookieValue)
+	if err != nil {
+		return "", http.StatusInternalServerError, err
+	}
+
 	return res, http.StatusCreated, nil
 }
 
