@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/TsunamiProject/UrlShortener.git/internal/config"
+	"github.com/TsunamiProject/UrlShortener.git/internal/db"
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
 )
 
@@ -235,6 +236,24 @@ func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error: %s", err)
 		return
 	}
+}
+
+func PingDBHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Recieved request with method: %s from: %s. Ping DB",
+		r.Method, r.Host)
+	dbObj := db.OpenDB(cfg.DatabaseDSN)
+	err := dbObj.Ping()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write([]byte(""))
+	if err != nil {
+		log.Printf("Error: %s", err)
+		return
+	}
+
 }
 
 func GetAPIUserURLHandler(w http.ResponseWriter, r *http.Request) {
