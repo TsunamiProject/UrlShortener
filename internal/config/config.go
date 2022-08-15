@@ -15,107 +15,43 @@ const (
 	defaultServerAddress   = "localhost:8080"
 	defaultBaseURL         = "http://localhost:8080"
 	defaultFileStoragePath = "/tmp/test"
+	defaultDatabaseDSN     = "user=pqgotest dbname=pqgotest sslmode=verify-full"
 )
 
 type Config struct {
-	ServerAddress   string `env:"SERVER_ADDRESS"`
-	BaseURL         string `env:"BASE_URL"`
-	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	ServerAddress   string `env:"SERVER_ADDRESS" envDefault:"localhost:8080"`
+	BaseURL         string `env:"BASE_URL" envDefault:"http://localhost:8080"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH" envDefault:"/tmp/test6"`
+	DatabaseDSN     string `env:"DATABASE_DSN" envDefault:"user=pqgotest dbname=pqgotest sslmode=verify-full"`
 }
 
-//func New() *Config {
-//	var config Config
-//	err := env.Parse(&config)
-//	if err != nil {
-//		log.Fatal("Error with collecting env params", err)
-//	}
-//
-//	if len(config.ServerAddress) > 0 && len(config.BaseURL) > 0 {
-//		err = validateConfig(&config)
-//		if err != nil {
-//			log.Println(err)
-//		}
-//	}
-//
-//	parseFlags(&config)
-//
-//	if len(config.ServerAddress) > 0 && len(config.BaseURL) > 0 {
-//		err = validateConfig(&config)
-//		if err != nil {
-//			log.Println(err)
-//		}
-//	} else {
-//		log.Println("Configuration params not found. Collecting config with default params.")
-//		setDefaultConfig(&config)
-//		return &config
-//	}
-//
-//	return &config
-//}
-
 func New() *Config {
-	var flagConfig Config
-	var envConfig Config
-	var resultConfig Config
-
-	parseFlags(&flagConfig)
-
-	err := env.Parse(&envConfig)
+	var config Config
+	err := env.Parse(&config)
 	if err != nil {
-		log.Fatal("Error with collecting env params", err)
+		log.Fatal(err)
+	}
+	flagSet := pflag.FlagSet{}
+	addrFlag := flagSet.StringP("-addr", "a", config.ServerAddress, "Server address with format: host:port")
+	urlFlag := flagSet.StringP("-baseurl", "b", config.BaseURL, "Base url of short urls")
+	fileStorageFlag := flagSet.StringP("-fstorage", "f", config.FileStoragePath, "File storage path")
+	dbDSNFlag := flagSet.StringP("-dbDsn", "d", config.DatabaseDSN, "Database DSN string")
+
+	err = flagSet.Parse(os.Args[1:])
+	if err != nil {
+		log.Fatal("Error while parsing sys Args")
+	}
+	config.ServerAddress = *addrFlag
+	config.BaseURL = *urlFlag
+	config.FileStoragePath = *fileStorageFlag
+	config.DatabaseDSN = *dbDSNFlag
+
+	err = validateConfig(&config)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	if len(envConfig.ServerAddress) > 0 {
-		err = validateURL(envConfig.ServerAddress)
-		if err != nil {
-			log.Println("Invalid server address param from env")
-		}
-		resultConfig.ServerAddress = envConfig.ServerAddress
-	} else if len(flagConfig.ServerAddress) > 0 {
-		if err != nil {
-			log.Println("Invalid server address param from flag value")
-		}
-		resultConfig.ServerAddress = flagConfig.ServerAddress
-	} else {
-		log.Println("Server address param not found. Collecting config with default value.")
-		resultConfig.ServerAddress = defaultServerAddress
-	}
-
-	if len(envConfig.BaseURL) > 0 {
-		err = validateURL(envConfig.BaseURL)
-		if err != nil {
-			log.Println("Invalid base url param from env")
-		}
-		resultConfig.BaseURL = envConfig.BaseURL
-	} else if len(flagConfig.BaseURL) > 0 {
-		err = validateURL(flagConfig.BaseURL)
-		if err != nil {
-			log.Println("Invalid base url param from flag value")
-		}
-		resultConfig.BaseURL = flagConfig.BaseURL
-	} else {
-		log.Println("Base url param not found. Collecting config with default value.")
-		resultConfig.BaseURL = defaultBaseURL
-	}
-
-	if len(envConfig.FileStoragePath) > 0 {
-		err = validateFilePath(envConfig.FileStoragePath)
-		if err != nil {
-			log.Println("Invalid file storage path param from env")
-		}
-		resultConfig.FileStoragePath = envConfig.FileStoragePath
-	} else if len(flagConfig.FileStoragePath) > 0 {
-		err = validateFilePath(flagConfig.FileStoragePath)
-		if err != nil {
-			log.Println("Invalid file storage path param from flag value")
-		}
-		resultConfig.FileStoragePath = flagConfig.FileStoragePath
-	} else {
-		log.Println("File storage path param not found. Collecting config with default value.")
-		resultConfig.FileStoragePath = defaultFileStoragePath
-	}
-
-	return &resultConfig
+	return &config
 }
 
 //parse url and return nil if url is valid or error
@@ -135,7 +71,7 @@ func validateURL(s string) error {
 //parse filepath and return nil if exist and error if not
 func validateFilePath(filepath string) error {
 	if len(filepath) == 0 {
-		return nil
+		return errors.New("empty filepath")
 	}
 	_, err := os.Stat(filepath)
 	if err == nil {
@@ -168,27 +104,4 @@ func validateConfig(c *Config) error {
 		return errors.New("wrong file storage path (dir doesnt exist)")
 	}
 	return nil
-}
-
-//collect config struct with flag values
-func parseFlags(c *Config) {
-	flagSet := pflag.FlagSet{}
-	addrFlag := flagSet.StringP("-addr", "a", "", "Server address with format: host:port")
-	baseURLFlag := flagSet.StringP("-baseurl", "b", "", "Base url of short urls")
-	fileStorageFlag := flagSet.StringP("-fstorage", "f", "", "File storage path")
-
-	err := flagSet.Parse(os.Args[1:])
-	if err != nil {
-		log.Fatal("Error while parsing sys Args")
-	}
-
-	c.ServerAddress = *addrFlag
-	c.BaseURL = *baseURLFlag
-	c.FileStoragePath = *fileStorageFlag
-}
-
-func setDefaultConfig(c *Config) {
-	c.ServerAddress = defaultServerAddress
-	c.BaseURL = defaultBaseURL
-	c.FileStoragePath = defaultFileStoragePath
 }
