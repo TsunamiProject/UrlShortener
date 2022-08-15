@@ -15,9 +15,12 @@ func NewRouter() chi.Router {
 	//	Handler: http.HandlerFunc(handlers.ReqHandler),
 	//}
 	//Collecting router
+	//
 	router := chi.NewRouter()
 	router.Use(middleware.GzipRespWriteHandler, middleware.GzipReqParseHandler)
+	router.Use(middleware.CookieHandler)
 	router.Get("/*", handlers.GetURLHandler)
+	router.Get("/api/user/urls", handlers.GetApiUserURLHandler)
 	router.Post("/", handlers.ShortenerHandler)
 	router.Post("/api/shorten", handlers.ShortenAPIHandler)
 	router.Put("/{}", handlers.MethodNotAllowedHandler)
