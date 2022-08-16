@@ -66,14 +66,17 @@ func (u *URLsWithAuth) Write(b []byte, authCookieValue string, ctx context.Conte
 }
 
 func (u *URLsWithAuth) Read(shortURL string, authCookie string, ctx context.Context) (string, int, error) {
-	res, ok := u.AuthURLsStorage.Load(authCookie)
-	if !ok {
+	res, _ := u.AuthURLsStorage.Load(authCookie)
+	if res == nil {
 		return "", http.StatusNotFound, fmt.Errorf("there are no URLs with ID: %s", shortURL)
 	}
 
-	temp, _ := json.Marshal(res)
+	temp, err := json.Marshal(res)
+	if err != nil {
+		return "", http.StatusInternalServerError, err
+	}
 	urlsWithAuthMapForMarshalling := make(map[string][]map[string]string)
-	err := json.Unmarshal(temp, &urlsWithAuthMapForMarshalling)
+	err = json.Unmarshal(temp, &urlsWithAuthMapForMarshalling)
 	if err != nil {
 		return "", http.StatusInternalServerError, err
 	}
