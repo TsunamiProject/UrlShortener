@@ -92,9 +92,10 @@ func (u *URLsWithAuth) Read(shortURL string, authCookie string, ctx context.Cont
 		for iter.Next() {
 			tempUrlsWithAuth.OriginalURL = iter.Key().String()
 			tempUrlsWithAuth.ShortURL = iter.Value().String()
-		}
-		if tempUrlsWithAuth.ShortURL == shortURL {
-			originalURL = tempUrlsWithAuth.OriginalURL
+			if tempUrlsWithAuth.ShortURL == shortURL {
+				originalURL = tempUrlsWithAuth.OriginalURL
+				break
+			}
 		}
 	}
 	if originalURL == "" {

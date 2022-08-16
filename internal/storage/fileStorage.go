@@ -88,6 +88,7 @@ func (f *FileStorage) Read(shortURL string, authCookieValue string, ctx context.
 		}
 		if temp.CookieValue == authCookieValue && temp.URLs.ShortURL == shortURL {
 			originalURL = temp.URLs.OriginalURL
+			break
 		}
 	}
 
