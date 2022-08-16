@@ -27,7 +27,7 @@ type FileStruct struct {
 }
 
 //return short url from original url which must be in request body, status code and error
-func (f *FileStorage) Write(b []byte, authCookieValue string, ctx context.Context) (string, int, error) {
+func (f *FileStorage) Write(b []byte, authCookieValue string, _ context.Context) (string, int, error) {
 	if len(b) == 0 {
 		return "", http.StatusBadRequest, errors.New("request body is empty")
 	}
@@ -68,7 +68,7 @@ func (f *FileStorage) Write(b []byte, authCookieValue string, ctx context.Contex
 }
 
 //return original url by ID as URL param, status code and error
-func (f *FileStorage) Read(shortURL string, authCookieValue string, ctx context.Context) (string, int, error) {
+func (f *FileStorage) Read(shortURL string, authCookieValue string, _ context.Context) (string, int, error) {
 	if len(shortURL) == 0 {
 		return "", http.StatusBadRequest, errors.New("request body is empty")
 	}
@@ -108,7 +108,7 @@ func (f *FileStorage) Read(shortURL string, authCookieValue string, ctx context.
 	return originalURL, http.StatusTemporaryRedirect, nil
 }
 
-func (f *FileStorage) ReadAll(authCookieValue string, ctx context.Context) (string, int, error) {
+func (f *FileStorage) ReadAll(authCookieValue string, _ context.Context) (string, int, error) {
 	file, err := os.OpenFile(cfg.FileStoragePath, os.O_CREATE|os.O_RDONLY, 0666)
 	if err != nil {
 		return "", http.StatusInternalServerError, nil

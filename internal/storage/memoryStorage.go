@@ -36,7 +36,7 @@ type JSONURL struct {
 	OriginalURL string `json:"original_url"`
 }
 
-func (u *URLsWithAuth) Write(b []byte, authCookieValue string, ctx context.Context) (string, int, error) {
+func (u *URLsWithAuth) Write(b []byte, authCookieValue string, _ context.Context) (string, int, error) {
 	if len(b) == 0 {
 		return "", http.StatusBadRequest, errors.New("request body is empty")
 	}
@@ -62,16 +62,17 @@ func (u *URLsWithAuth) Write(b []byte, authCookieValue string, ctx context.Conte
 	urlsMap[authCookieValue] = append(urlsMap[authCookieValue], map[string]string{k: v})
 	u.AuthURLsStorage.Store(authCookieValue, urlsMap)
 	test, _ := u.AuthURLsStorage.Load(authCookieValue)
-	fmt.Println("Data in memory after storing:", test)
+
+	log.Println("Data in memory after storing:", test)
 	resp := fmt.Sprintf("%s/%s", cfg.BaseURL, v)
 
 	return resp, http.StatusCreated, nil
 }
 
-func (u *URLsWithAuth) Read(shortURL string, authCookie string, ctx context.Context) (string, int, error) {
-	fmt.Println("authCookie value:", authCookie)
+func (u *URLsWithAuth) Read(shortURL string, authCookie string, _ context.Context) (string, int, error) {
+	log.Println("authCookie value:", authCookie)
 	res, _ := u.AuthURLsStorage.Load(authCookie)
-	fmt.Println("Data after loading from memory: ", res)
+	log.Println("Data after loading from memory: ", res)
 	//if res == nil {
 	//	log.Println("nil load ")
 	//	return "", http.StatusNotFound, fmt.Errorf("there are no URLs with ID: %s", shortURL)
@@ -113,7 +114,7 @@ func (u *URLsWithAuth) Read(shortURL string, authCookie string, ctx context.Cont
 	return originalURL, http.StatusTemporaryRedirect, nil
 }
 
-func (u *URLsWithAuth) ReadAll(authCookieValue string, ctx context.Context) (string, int, error) {
+func (u *URLsWithAuth) ReadAll(authCookieValue string, _ context.Context) (string, int, error) {
 	res, _ := u.AuthURLsStorage.Load(authCookieValue)
 	if res == nil {
 		return "", http.StatusNotFound, fmt.Errorf("there are no URLs shortened by user: %s", authCookieValue)
