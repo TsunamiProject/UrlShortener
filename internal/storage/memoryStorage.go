@@ -70,6 +70,7 @@ func (u *URLsWithAuth) Write(b []byte, authCookieValue string, ctx context.Conte
 
 func (u *URLsWithAuth) Read(shortURL string, authCookie string, ctx context.Context) (string, int, error) {
 	res, _ := u.AuthURLsStorage.Load(authCookie)
+	fmt.Println("Data after loading from memory: ", res)
 	//if res == nil {
 	//	log.Println("nil load ")
 	//	return "", http.StatusNotFound, fmt.Errorf("there are no URLs with ID: %s", shortURL)

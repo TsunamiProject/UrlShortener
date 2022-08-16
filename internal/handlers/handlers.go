@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -166,6 +167,7 @@ func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 
+	fmt.Println("Cookie value: ", authCookie.Value)
 	reqURL := r.URL.String()
 	res, status, err := currStorage.Read(reqURL[1:], authCookie.Value, ctx)
 	if err != nil {
