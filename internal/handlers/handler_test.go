@@ -209,14 +209,14 @@ func TestGetUserUrlsHandler(t *testing.T) {
 	firstHashString := shorten.EncodeString([]byte(firstTestURL))
 	secondHashString := shorten.EncodeString([]byte(secondTestURL))
 	thirdHashString := shorten.EncodeString([]byte(thirdTestURL))
-	var testResSlice []storage.JsonURL
-	testResSlice = append(testResSlice, storage.JsonURL{
+	var testResSlice []storage.JSONURL
+	testResSlice = append(testResSlice, storage.JSONURL{
 		ShortURL:    fmt.Sprintf("%s/%s", cfg.BaseURL, firstHashString),
 		OriginalURL: firstTestURL,
-	}, storage.JsonURL{
+	}, storage.JSONURL{
 		ShortURL:    fmt.Sprintf("%s/%s", cfg.BaseURL, thirdHashString),
 		OriginalURL: thirdTestURL,
-	}, storage.JsonURL{
+	}, storage.JSONURL{
 		ShortURL:    fmt.Sprintf("%s/%s", cfg.BaseURL, secondHashString),
 		OriginalURL: secondTestURL,
 	})

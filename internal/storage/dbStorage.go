@@ -37,7 +37,7 @@ func (db *DBStorage) Write(b []byte, authCookieValue string, ctx context.Context
 	if len(b) == 0 {
 		return "", http.StatusBadRequest, errors.New("request body is empty")
 	}
-	urls := &JsonURL{
+	urls := &JSONURL{
 		ShortURL:    shorten.EncodeString(b),
 		OriginalURL: string(b),
 	}
@@ -66,7 +66,7 @@ func (db *DBStorage) ReadAll(authCookieValue string, ctx context.Context) (strin
 	if err != nil {
 		return "", http.StatusNotFound, fmt.Errorf("there are no URLs shortened by user: %s", authCookieValue)
 	}
-	var urlsList []JsonURL
+	var urlsList []JSONURL
 	var shortURL string
 	var originalURL string
 	for rows.Next() {
@@ -74,7 +74,7 @@ func (db *DBStorage) ReadAll(authCookieValue string, ctx context.Context) (strin
 			log.Fatal("here?", err)
 			return "", http.StatusInternalServerError, err
 		}
-		urlsList = append(urlsList, JsonURL{
+		urlsList = append(urlsList, JSONURL{
 			ShortURL:    fmt.Sprintf("%s/%s", cfg.BaseURL, shortURL),
 			OriginalURL: originalURL,
 		})

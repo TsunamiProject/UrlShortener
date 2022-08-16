@@ -30,7 +30,7 @@ type URLsWithAuth struct {
 	AuthURLsStorage sync.Map
 }
 
-type JsonURL struct {
+type JSONURL struct {
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
 }
@@ -67,7 +67,7 @@ func (u *URLsWithAuth) Write(b []byte, authCookieValue string, ctx context.Conte
 
 func (u *URLsWithAuth) Read(shortURL string, authCookie string, ctx context.Context) (string, int, error) {
 	res, ok := u.AuthURLsStorage.Load(authCookie)
-	if ok == false {
+	if !ok {
 		return "", http.StatusNotFound, fmt.Errorf("there are no URLs with ID: %s", shortURL)
 	}
 
@@ -80,7 +80,7 @@ func (u *URLsWithAuth) Read(shortURL string, authCookie string, ctx context.Cont
 	var originalURL string
 	for i := 0; i < len(urlsWithAuthMapForMarshalling[authCookie]); i++ {
 		iter := reflect.ValueOf(urlsWithAuthMapForMarshalling[authCookie][i]).MapRange()
-		tempUrlsWithAuth := JsonURL{
+		tempUrlsWithAuth := JSONURL{
 			ShortURL:    "",
 			OriginalURL: "",
 		}
@@ -112,10 +112,10 @@ func (u *URLsWithAuth) ReadAll(authCookieValue string, ctx context.Context) (str
 		return "", http.StatusInternalServerError, err
 	}
 
-	var toMarshallList []JsonURL
+	var toMarshallList []JSONURL
 	for i := 0; i < len(urlsWithAuthMapForMarshalling[authCookieValue]); i++ {
 		iter := reflect.ValueOf(urlsWithAuthMapForMarshalling[authCookieValue][i]).MapRange()
-		tempUrlsWithAuth := JsonURL{
+		tempUrlsWithAuth := JSONURL{
 			ShortURL:    "",
 			OriginalURL: "",
 		}

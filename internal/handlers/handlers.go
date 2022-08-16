@@ -65,6 +65,9 @@ func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Recieved request with method: %s from: %s with r.body: %s",
 		r.Method, r.Host, string(b))
 	err = r.Body.Close()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 
 	authCookie, err := r.Cookie("auth")
 	if err != nil {

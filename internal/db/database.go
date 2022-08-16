@@ -23,13 +23,10 @@ func ConnectToDB(databaseDsn string) *Database {
 }
 
 func (dbObj *Database) Ping(ctx context.Context) error {
-	ctx, ctxCancel := context.WithTimeout(context.Background(), 1*time.Second)
 	err := dbObj.db.PingContext(ctx)
 	if err != nil {
-		ctxCancel()
 		return err
 	}
-	ctxCancel()
 	return nil
 }
 

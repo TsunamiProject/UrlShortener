@@ -23,7 +23,7 @@ type FileStorage struct {
 
 type FileStruct struct {
 	CookieValue string
-	URLs        JsonURL
+	URLs        JSONURL
 }
 
 //return short url from original url which must be in request body, status code and error
@@ -38,7 +38,7 @@ func (f *FileStorage) Write(b []byte, authCookieValue string, ctx context.Contex
 	}
 	toFile := &FileStruct{
 		CookieValue: authCookieValue,
-		URLs: JsonURL{
+		URLs: JSONURL{
 			ShortURL:    shorten.EncodeString(b),
 			OriginalURL: string(b),
 		},
@@ -51,6 +51,9 @@ func (f *FileStorage) Write(b []byte, authCookieValue string, ctx context.Contex
 	_, err = file.Write([]byte(fmt.Sprintf("%s\n", res)))
 	if err != nil {
 		err = file.Close()
+		if err != nil {
+			return "", http.StatusInternalServerError, nil
+		}
 		return "", http.StatusInternalServerError, nil
 	}
 
@@ -111,7 +114,7 @@ func (f *FileStorage) ReadAll(authCookieValue string, ctx context.Context) (stri
 	}
 	scanner := bufio.NewScanner(file)
 
-	var resList []JsonURL
+	var resList []JSONURL
 	for scanner.Scan() {
 		var temp FileStruct
 		err = json.Unmarshal([]byte(scanner.Text()), &temp)
