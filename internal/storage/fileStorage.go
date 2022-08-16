@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,8 +21,51 @@ func GetFileStorage() *FileStorage {
 type FileStorage struct {
 }
 
+type FileStruct struct {
+	CookieValue string
+	URLs        JsonURL
+}
+
+//return short url from original url which must be in request body, status code and error
+func (f *FileStorage) Write(b []byte, authCookieValue string, ctx context.Context) (string, int, error) {
+	if len(b) == 0 {
+		return "", http.StatusBadRequest, errors.New("request body is empty")
+	}
+
+	file, err := os.OpenFile(cfg.FileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return "", http.StatusInternalServerError, nil
+	}
+	toFile := &FileStruct{
+		CookieValue: authCookieValue,
+		URLs: JsonURL{
+			ShortURL:    shorten.EncodeString(b),
+			OriginalURL: string(b),
+		},
+	}
+	res, err := json.Marshal(toFile)
+	if err != nil {
+		return "", http.StatusInternalServerError, nil
+	}
+
+	_, err = file.Write([]byte(fmt.Sprintf("%s\n", res)))
+	if err != nil {
+		err = file.Close()
+		return "", http.StatusInternalServerError, nil
+	}
+
+	err = file.Close()
+	if err != nil {
+		return "", http.StatusInternalServerError, nil
+	}
+
+	shortenURL := fmt.Sprintf("%s/%s", cfg.BaseURL, shorten.EncodeString(b))
+
+	return shortenURL, http.StatusCreated, nil
+}
+
 //return original url by ID as URL param, status code and error
-func (f *FileStorage) Read(shortURL string) (string, int, error) {
+func (f *FileStorage) Read(shortURL string, authCookieValue string, ctx context.Context) (string, int, error) {
 	if len(shortURL) == 0 {
 		return "", http.StatusBadRequest, errors.New("request body is empty")
 	}
@@ -34,13 +78,13 @@ func (f *FileStorage) Read(shortURL string) (string, int, error) {
 
 	var originalURL string
 	for scanner.Scan() {
-		var temp JsonURL
+		var temp FileStruct
 		err = json.Unmarshal([]byte(scanner.Text()), &temp)
 		if err != nil {
 			continue
 		}
-		if temp.ShortURL == shortURL {
-			originalURL = temp.OriginalURL
+		if temp.CookieValue == authCookieValue && temp.URLs.ShortURL == shortURL {
+			originalURL = temp.URLs.OriginalURL
 		}
 	}
 
@@ -60,23 +104,26 @@ func (f *FileStorage) Read(shortURL string) (string, int, error) {
 	return originalURL, http.StatusTemporaryRedirect, nil
 }
 
-//return short url from original url which must be in request body, status code and error
-func (f *FileStorage) Write(b []byte) (string, int, error) {
-	if len(b) == 0 {
-		return "", http.StatusBadRequest, errors.New("request body is empty")
+func (f *FileStorage) ReadAll(authCookieValue string, ctx context.Context) (string, int, error) {
+	file, err := os.OpenFile(cfg.FileStoragePath, os.O_CREATE|os.O_RDONLY, 0666)
+	if err != nil {
+		return "", http.StatusInternalServerError, nil
+	}
+	scanner := bufio.NewScanner(file)
+
+	var resList []JsonURL
+	for scanner.Scan() {
+		var temp FileStruct
+		err = json.Unmarshal([]byte(scanner.Text()), &temp)
+		if err != nil {
+			continue
+		}
+		if temp.CookieValue == authCookieValue {
+			resList = append(resList, temp.URLs)
+		}
 	}
 
-	file, err := os.OpenFile(cfg.FileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		return "", http.StatusInternalServerError, nil
-	}
-	res, err := json.Marshal(&JsonURL{shorten.EncodeString(b), string(b)})
-	if err != nil {
-		return "", http.StatusInternalServerError, nil
-	}
-	_, err = file.Write([]byte(fmt.Sprintf("%s\n", res)))
-	if err != nil {
-		err = file.Close()
+	if err = scanner.Err(); err != nil {
 		return "", http.StatusInternalServerError, nil
 	}
 
@@ -85,11 +132,14 @@ func (f *FileStorage) Write(b []byte) (string, int, error) {
 		return "", http.StatusInternalServerError, nil
 	}
 
-	shortenURL := fmt.Sprintf("%s/%s", cfg.BaseURL, shorten.EncodeString(b))
+	if len(resList) == 0 {
+		return "", http.StatusNotFound, fmt.Errorf("there are no URLs shortened by user: %s", authCookieValue)
+	}
 
-	return shortenURL, http.StatusCreated, nil
-}
+	resp, err := json.Marshal(resList)
+	if err != nil {
+		return "", http.StatusInternalServerError, nil
+	}
 
-func (f *FileStorage) Restore() error {
-	return nil
+	return string(resp), http.StatusOK, nil
 }
