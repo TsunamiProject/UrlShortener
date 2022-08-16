@@ -61,6 +61,8 @@ func (u *URLsWithAuth) Write(b []byte, authCookieValue string, ctx context.Conte
 
 	urlsMap[authCookieValue] = append(urlsMap[authCookieValue], map[string]string{k: v})
 	u.AuthURLsStorage.Store(authCookieValue, urlsMap)
+	test, _ := u.AuthURLsStorage.Load(authCookieValue)
+	fmt.Println("Data in memory after storing:", test)
 	resp := fmt.Sprintf("%s/%s", cfg.BaseURL, v)
 
 	return resp, http.StatusCreated, nil
