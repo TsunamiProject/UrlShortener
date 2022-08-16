@@ -82,6 +82,7 @@ func (u *URLsWithAuth) Read(shortURL string, authCookie string, ctx context.Cont
 	if err != nil {
 		return "", http.StatusInternalServerError, err
 	}
+	log.Println("Data from memory:", urlsWithAuthMapForMarshalling)
 	var originalURL string
 	for i := 0; i < len(urlsWithAuthMapForMarshalling[authCookie]); i++ {
 		iter := reflect.ValueOf(urlsWithAuthMapForMarshalling[authCookie][i]).MapRange()
@@ -92,8 +93,8 @@ func (u *URLsWithAuth) Read(shortURL string, authCookie string, ctx context.Cont
 		for iter.Next() {
 			tempUrlsWithAuth.OriginalURL = iter.Key().String()
 			tempUrlsWithAuth.ShortURL = iter.Value().String()
-			fmt.Println("tempURLs OriginalURL: ", tempUrlsWithAuth.OriginalURL)
-			fmt.Println("tempURLs ShortURL: ", tempUrlsWithAuth.ShortURL)
+			log.Println("tempURLs OriginalURL: ", tempUrlsWithAuth.OriginalURL)
+			log.Println("tempURLs ShortURL: ", tempUrlsWithAuth.ShortURL)
 			if tempUrlsWithAuth.ShortURL == shortURL {
 				originalURL = tempUrlsWithAuth.OriginalURL
 				break
