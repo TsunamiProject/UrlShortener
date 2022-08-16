@@ -83,7 +83,7 @@ func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 		CookieValue: authCookie.Value,
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 100*time.Second)
 	defer cancel()
 
 	res, status, err := currStorage.Write(writeToStruct.ReqBody, writeToStruct.CookieValue, ctx)
@@ -126,7 +126,7 @@ func ShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 100*time.Second)
 	defer cancel()
 
 	res, status, err := urlDecoder(b, authCookie.Value, ctx)
@@ -164,7 +164,7 @@ func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 100*time.Second)
 	defer cancel()
 
 	fmt.Println("Cookie value: ", authCookie.Value)
@@ -200,7 +200,7 @@ func PingDBHandler(w http.ResponseWriter, r *http.Request) {
 
 		}
 	}(dbObj)
-	ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 100*time.Second)
 	defer cancel()
 	err := dbObj.Ping(ctx)
 	if err != nil {
@@ -225,7 +225,7 @@ func GetAPIUserURLHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNoContent)
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 100*time.Second)
 	defer cancel()
 	res, status, err := currStorage.ReadAll(authCookie.Value, ctx)
 	if err != nil {
