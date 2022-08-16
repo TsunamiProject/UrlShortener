@@ -30,9 +30,22 @@ func init() {
 		currStorage = storage.GetInMemoryStorage()
 	}
 
-	//if cfg.DatabaseDSN != "" {
-	//	currStorage = db.Database{}
-	//}
+	if cfg.DatabaseDSN != "" {
+		dbObj := db.ConnectToDB(cfg.DatabaseDSN)
+		err := dbObj.CreateURLsTable()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = dbObj.CreateAuthTable()
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = dbObj.CloseDBConn()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+	}
 
 }
 

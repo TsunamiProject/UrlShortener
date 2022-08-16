@@ -8,26 +8,6 @@ import (
 	_ "github.com/jackc/pgx/v4/stdlib"
 )
 
-//func init() {
-//	cfg := config.New()
-//	dbObj := ConnectToDB(cfg.DatabaseDSN)
-//	defer func(dbObj *Database) {
-//		err := dbObj.CloseDBConn()
-//		if err != nil {
-//			log.Fatal(err)
-//		}
-//	}(dbObj)
-//
-//	err := dbObj.CreateURLsTable()
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//	err = dbObj.CreateAuthTable()
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//}
-
 type Database struct {
 	db *sql.DB
 }
