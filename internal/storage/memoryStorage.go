@@ -69,6 +69,7 @@ func (u *URLsWithAuth) Write(b []byte, authCookieValue string, ctx context.Conte
 }
 
 func (u *URLsWithAuth) Read(shortURL string, authCookie string, ctx context.Context) (string, int, error) {
+	fmt.Println("authCookie value:", authCookie)
 	res, _ := u.AuthURLsStorage.Load(authCookie)
 	fmt.Println("Data after loading from memory: ", res)
 	//if res == nil {
