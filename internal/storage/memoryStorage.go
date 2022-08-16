@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"reflect"
 	"sync"
@@ -67,9 +68,10 @@ func (u *URLsWithAuth) Write(b []byte, authCookieValue string, ctx context.Conte
 
 func (u *URLsWithAuth) Read(shortURL string, authCookie string, ctx context.Context) (string, int, error) {
 	res, _ := u.AuthURLsStorage.Load(authCookie)
-	if res == nil {
-		return "", http.StatusNotFound, fmt.Errorf("there are no URLs with ID: %s", shortURL)
-	}
+	//if res == nil {
+	//	log.Println("nil load ")
+	//	return "", http.StatusNotFound, fmt.Errorf("there are no URLs with ID: %s", shortURL)
+	//}
 
 	temp, err := json.Marshal(res)
 	if err != nil {
@@ -96,6 +98,7 @@ func (u *URLsWithAuth) Read(shortURL string, authCookie string, ctx context.Cont
 		}
 	}
 	if originalURL == "" {
+		log.Println("Original URL not found")
 		return "", http.StatusNotFound, fmt.Errorf("there are no URLs with ID: %s", shortURL)
 	}
 
