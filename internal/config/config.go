@@ -21,8 +21,8 @@ const (
 type Config struct {
 	ServerAddress   string `env:"SERVER_ADDRESS" envDefault:"localhost:8080"`
 	BaseURL         string `env:"BASE_URL" envDefault:"http://localhost:8080"`
-	FileStoragePath string `env:"FILE_STORAGE_PATH" envDefault:"/tmp/test6"`
-	DatabaseDSN     string `env:"DATABASE_DSN" envDefault:"user=pqgotest dbname=pqgotest sslmode=verify-full"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH"`
+	DatabaseDSN     string `env:"DATABASE_DSN"`
 }
 
 func New() *Config {
@@ -93,15 +93,15 @@ func validateFilePath(filepath string) error {
 func validateConfig(c *Config) error {
 	addrErr := validateURL(c.ServerAddress)
 	baseURLErr := validateURL(c.BaseURL)
-	fileStorageErr := validateFilePath(c.FileStoragePath)
+	//fileStorageErr := validateFilePath(c.FileStoragePath)
 	if addrErr != nil {
 		return errors.New("wrong server address param")
 	}
 	if baseURLErr != nil {
 		return errors.New("wrong base url param")
 	}
-	if fileStorageErr != nil {
-		return errors.New("wrong file storage path (dir doesnt exist)")
-	}
+	//if fileStorageErr != nil {
+	//	return errors.New("wrong file storage path (dir doesnt exist)")
+	//}
 	return nil
 }

@@ -14,6 +14,7 @@ import (
 
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/middleware"
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
+	"github.com/TsunamiProject/UrlShortener.git/internal/storage"
 )
 
 const (
@@ -177,7 +178,7 @@ func TestShortenerApiHandler(t *testing.T) {
 func TestGetUrlHandler(t *testing.T) {
 	testMap := make(map[string]tests)
 	firstHashString := shorten.EncodeString([]byte(firstTestURL))
-	secondHashString := shorten.EncodeString([]byte("zhopa"))
+	secondHashString := shorten.EncodeString([]byte("noexists"))
 	testMap["#1 Get origin URL from shorten URL. Shorten URL already exists."] = tests{
 		request:     "/" + firstHashString,
 		requestBody: "",
@@ -208,14 +209,14 @@ func TestGetUserUrlsHandler(t *testing.T) {
 	firstHashString := shorten.EncodeString([]byte(firstTestURL))
 	secondHashString := shorten.EncodeString([]byte(secondTestURL))
 	thirdHashString := shorten.EncodeString([]byte(thirdTestURL))
-	var testResSlice []UrlsWithAuth
-	testResSlice = append(testResSlice, UrlsWithAuth{
+	var testResSlice []storage.JsonURL
+	testResSlice = append(testResSlice, storage.JsonURL{
 		ShortURL:    fmt.Sprintf("%s/%s", cfg.BaseURL, firstHashString),
 		OriginalURL: firstTestURL,
-	}, UrlsWithAuth{
+	}, storage.JsonURL{
 		ShortURL:    fmt.Sprintf("%s/%s", cfg.BaseURL, thirdHashString),
 		OriginalURL: thirdTestURL,
-	}, UrlsWithAuth{
+	}, storage.JsonURL{
 		ShortURL:    fmt.Sprintf("%s/%s", cfg.BaseURL, secondHashString),
 		OriginalURL: secondTestURL,
 	})
@@ -230,16 +231,5 @@ func TestGetUserUrlsHandler(t *testing.T) {
 			contentType: "application/json",
 		},
 	}
-	//testMap["Get origin URL from shorten URL. Shorten URL doesn't exist."] = tests{
-	//	request:     "/" + secondHashString,
-	//	requestBody: "",
-	//	method:      "GET",
-	//	want: want{
-	//		statusCode:  404,
-	//		response:    fmt.Sprintf("there are no URLs with ID: %s\n", secondHashString),
-	//		contentType: "text/plain; charset=utf-8",
-	//		location:    "",
-	//	},
-	//}
 	runTests(testMap, t)
 }
