@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -33,7 +32,7 @@ func GetDBStorage() (*DBStorage, error) {
 	return &DBStorage{db: dbObj}, nil
 }
 
-func (db *DBStorage) Write(b []byte, authCookieValue string, ctx context.Context) (string, int, error) {
+func (db *DBStorage) Write(b []byte, authCookieValue string) (string, int, error) {
 	if len(b) == 0 {
 		return "", http.StatusBadRequest, errors.New("request body is empty")
 	}
@@ -42,7 +41,7 @@ func (db *DBStorage) Write(b []byte, authCookieValue string, ctx context.Context
 		OriginalURL: string(b),
 	}
 
-	err := db.db.InsertRow(authCookieValue, urls.ShortURL, urls.OriginalURL, ctx)
+	err := db.db.InsertRow(authCookieValue, urls.ShortURL, urls.OriginalURL)
 	if err != nil {
 		return "", http.StatusInternalServerError, err
 	}
@@ -52,8 +51,8 @@ func (db *DBStorage) Write(b []byte, authCookieValue string, ctx context.Context
 	return shortenURL, http.StatusCreated, nil
 }
 
-func (db *DBStorage) Read(shortURL string, authCookieValue string, ctx context.Context) (string, int, error) {
-	row, err := db.db.GetRow(shortURL, authCookieValue, ctx)
+func (db *DBStorage) Read(shortURL string, authCookieValue string) (string, int, error) {
+	row, err := db.db.GetRow(shortURL, authCookieValue)
 	if err != nil || row == "" {
 		return "", http.StatusNotFound, fmt.Errorf("there are no URLs with ID: %s", shortURL)
 	}
@@ -61,8 +60,8 @@ func (db *DBStorage) Read(shortURL string, authCookieValue string, ctx context.C
 	return row, http.StatusTemporaryRedirect, nil
 }
 
-func (db *DBStorage) ReadAll(authCookieValue string, ctx context.Context) (string, int, error) {
-	rows, err := db.db.GetAllRows(authCookieValue, ctx)
+func (db *DBStorage) ReadAll(authCookieValue string) (string, int, error) {
+	rows, err := db.db.GetAllRows(authCookieValue)
 	if err != nil {
 		return "", http.StatusNotFound, fmt.Errorf("there are no URLs shortened by user: %s", authCookieValue)
 	}

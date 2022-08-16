@@ -1,14 +1,12 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/TsunamiProject/UrlShortener.git/internal/config"
 	"github.com/TsunamiProject/UrlShortener.git/internal/db"
@@ -83,10 +81,10 @@ func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 		CookieValue: authCookie.Value,
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
-	defer cancel()
+	//ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
+	//defer cancel()
 
-	res, status, err := currStorage.Write(writeToStruct.ReqBody, writeToStruct.CookieValue, ctx)
+	res, status, err := currStorage.Write(writeToStruct.ReqBody, writeToStruct.CookieValue)
 	if err != nil {
 		log.Printf("Error: %s", err)
 		http.Error(w, err.Error(), status)
@@ -125,11 +123,11 @@ func ShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+	//
+	//ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
+	//defer cancel()
 
-	ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
-	defer cancel()
-
-	res, status, err := urlDecoder(b, authCookie.Value, ctx)
+	res, status, err := urlDecoder(b, authCookie.Value)
 	if err != nil {
 		log.Printf("Error: %s", err)
 		http.Error(w, err.Error(), status)
@@ -163,13 +161,13 @@ func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
-	defer cancel()
+	//
+	//ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
+	//defer cancel()
 
 	fmt.Println("Cookie value: ", authCookie.Value)
 	reqURL := r.URL.String()
-	res, status, err := currStorage.Read(reqURL[1:], authCookie.Value, ctx)
+	res, status, err := currStorage.Read(reqURL[1:], authCookie.Value)
 	if err != nil {
 		http.Error(w, err.Error(), status)
 		log.Printf("Error: %s", err)
@@ -200,9 +198,9 @@ func PingDBHandler(w http.ResponseWriter, r *http.Request) {
 
 		}
 	}(dbObj)
-	ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
-	defer cancel()
-	err := dbObj.Ping(ctx)
+	//ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
+	//defer cancel()
+	err := dbObj.Ping()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -225,9 +223,9 @@ func GetAPIUserURLHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNoContent)
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
-	defer cancel()
-	res, status, err := currStorage.ReadAll(authCookie.Value, ctx)
+	//ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
+	//defer cancel()
+	res, status, err := currStorage.ReadAll(authCookie.Value)
 	if err != nil {
 		http.Error(w, err.Error(), status)
 	}
@@ -241,7 +239,7 @@ func GetAPIUserURLHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func urlDecoder(b []byte, cookieValue string, ctx context.Context) (string, int, error) {
+func urlDecoder(b []byte, cookieValue string) (string, int, error) {
 	var decodeStruct DecodeStruct
 
 	err := json.Unmarshal(b, &decodeStruct)
@@ -249,7 +247,7 @@ func urlDecoder(b []byte, cookieValue string, ctx context.Context) (string, int,
 		return "", http.StatusBadRequest, errors.New("invalid request body")
 	}
 
-	res, status, err := currStorage.Write([]byte(decodeStruct.URL), cookieValue, ctx)
+	res, status, err := currStorage.Write([]byte(decodeStruct.URL), cookieValue)
 	if err != nil {
 		return "", status, err
 	}

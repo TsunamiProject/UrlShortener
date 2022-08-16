@@ -1,11 +1,9 @@
 package db
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"log"
-	"time"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
 )
@@ -22,8 +20,8 @@ func ConnectToDB(databaseDsn string) *Database {
 	return &Database{db: db}
 }
 
-func (dbObj *Database) Ping(ctx context.Context) error {
-	err := dbObj.db.PingContext(ctx)
+func (dbObj *Database) Ping() error {
+	err := dbObj.db.Ping()
 	if err != nil {
 		return err
 	}
@@ -46,9 +44,9 @@ func (dbObj *Database) CreateURLsTable() error {
                          	FOREIGN KEY (AUTHID) REFERENCES AUTHURLS(AUTHID)
                            )`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	_, err := dbObj.db.ExecContext(ctx, urlsTableQueryString)
+	//ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	//defer cancel()
+	_, err := dbObj.db.Exec(urlsTableQueryString)
 	if err != nil {
 		return err
 	}
@@ -60,9 +58,9 @@ func (dbObj *Database) CreateAuthTable() error {
 	authIDTableQueryString := `CREATE TABLE IF NOT EXISTS AUTHURLS(
                        AUTHID varchar(255) PRIMARY KEY
 					)`
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	_, err := dbObj.db.ExecContext(ctx, authIDTableQueryString)
+	//ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	//defer cancel()
+	_, err := dbObj.db.Exec(authIDTableQueryString)
 	if err != nil {
 		return err
 	}
@@ -70,16 +68,16 @@ func (dbObj *Database) CreateAuthTable() error {
 	return nil
 }
 
-func (dbObj *Database) InsertRow(authCookieValue string, shortURL string, originalURL string, ctx context.Context) error {
+func (dbObj *Database) InsertRow(authCookieValue string, shortURL string, originalURL string) error {
 	insertRowAuthQueryString := `INSERT INTO authurls VALUES ('%s') ON CONFLICT DO NOTHING`
 	insertRowURLsQueryString := `INSERT INTO noauthurls VALUES ('%s', '%s', '%s')`
 
-	_, err := dbObj.db.ExecContext(ctx, fmt.Sprintf(insertRowAuthQueryString, authCookieValue))
+	_, err := dbObj.db.Exec(fmt.Sprintf(insertRowAuthQueryString, authCookieValue))
 	if err != nil {
 		return err
 	}
 
-	_, err = dbObj.db.ExecContext(ctx, fmt.Sprintf(insertRowURLsQueryString, authCookieValue, shortURL, originalURL))
+	_, err = dbObj.db.Exec(fmt.Sprintf(insertRowURLsQueryString, authCookieValue, shortURL, originalURL))
 	if err != nil {
 		return err
 	}
@@ -87,11 +85,11 @@ func (dbObj *Database) InsertRow(authCookieValue string, shortURL string, origin
 	return nil
 }
 
-func (dbObj *Database) GetRow(authCookieValue string, shortURL string, ctx context.Context) (string, error) {
+func (dbObj *Database) GetRow(authCookieValue string, shortURL string) (string, error) {
 	getOriginalURLQueryString := `SELECT ORIGINALURL FROM noauthurls WHERE AUTHID='%s' AND SHORTURL='%s' LIMIT 1`
 	var originalURL string
 
-	err := dbObj.db.QueryRowContext(ctx, fmt.Sprintf(getOriginalURLQueryString,
+	err := dbObj.db.QueryRow(fmt.Sprintf(getOriginalURLQueryString,
 		shortURL, authCookieValue)).Scan(&originalURL)
 	if err == sql.ErrNoRows {
 		return "", err
@@ -100,10 +98,10 @@ func (dbObj *Database) GetRow(authCookieValue string, shortURL string, ctx conte
 	return originalURL, nil
 }
 
-func (dbObj *Database) GetAllRows(authCookieValue string, ctx context.Context) (*sql.Rows, error) {
+func (dbObj *Database) GetAllRows(authCookieValue string) (*sql.Rows, error) {
 	getOriginalURLQueryString := `SELECT SHORTURL,ORIGINALURL FROM noauthurls WHERE AUTHID='%s'`
 
-	rows, err := dbObj.db.QueryContext(ctx, fmt.Sprintf(getOriginalURLQueryString,
+	rows, err := dbObj.db.Query(fmt.Sprintf(getOriginalURLQueryString,
 		authCookieValue))
 	if err == sql.ErrNoRows {
 		return nil, err
