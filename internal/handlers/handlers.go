@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/TsunamiProject/UrlShortener.git/internal/config"
 	"github.com/TsunamiProject/UrlShortener.git/internal/db"
@@ -14,13 +16,17 @@ import (
 
 var cfg = config.New()
 var currStorage storage.Storage
-var authStorage = storage.GetInMemoryAuthStorage()
 
 type EncodeStruct struct {
 	Result string `json:"result"`
 }
 type DecodeStruct struct {
 	URL string `json:"url"`
+}
+
+type WriteTo struct {
+	ReqBody     []byte
+	CookieValue string
 }
 
 func init() {
@@ -31,20 +37,12 @@ func init() {
 	}
 
 	if cfg.DatabaseDSN != "" {
-		dbObj := db.ConnectToDB(cfg.DatabaseDSN)
-		err := dbObj.CreateAuthTable()
+		//err := currStorage
+		var err error
+		currStorage, err = storage.GetDBStorage()
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = dbObj.CreateURLsTable()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = dbObj.CloseDBConn()
-		if err != nil {
-			log.Fatal(err)
-		}
-
 	}
 
 }
@@ -67,27 +65,26 @@ func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Recieved request with method: %s from: %s with r.body: %s",
 		r.Method, r.Host, string(b))
 	err = r.Body.Close()
-	if err != nil {
-		log.Printf("Error: %s", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-	res, status, err := currStorage.Write(b)
-	if err != nil {
-		log.Printf("Error: %s", err)
-		http.Error(w, err.Error(), status)
-		return
-	}
 
 	authCookie, err := r.Cookie("auth")
 	if err != nil {
 		log.Printf("Error: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-	} else {
-		err = authStorage.Write(b, authCookie.Value)
-		if err != nil {
-			log.Printf("Error: %s", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+	}
+
+	writeToStruct := &WriteTo{
+		ReqBody:     b,
+		CookieValue: authCookie.Value,
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+
+	res, status, err := currStorage.Write(writeToStruct.ReqBody, writeToStruct.CookieValue, ctx)
+	if err != nil {
+		log.Printf("Error: %s", err)
+		http.Error(w, err.Error(), status)
+		return
 	}
 
 	//setting headers
@@ -123,7 +120,10 @@ func ShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	res, status, err := urlDecoder(b, authCookie.Value)
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	res, status, err := urlDecoder(b, authCookie.Value, ctx)
 	if err != nil {
 		log.Printf("Error: %s", err)
 		http.Error(w, err.Error(), status)
@@ -152,8 +152,17 @@ func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 	//calls getFullUrlHandler on GET method
 	log.Printf("Recieved request with method: %s from: %s with ID_PARAM: %s",
 		r.Method, r.Host, r.URL.String()[1:])
+	authCookie, err := r.Cookie("auth")
+	if err != nil {
+		log.Printf("Error: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+
 	reqURL := r.URL.String()
-	res, status, err := currStorage.Read(reqURL[1:])
+	res, status, err := currStorage.Read(reqURL[1:], authCookie.Value, ctx)
 	if err != nil {
 		http.Error(w, err.Error(), status)
 		log.Printf("Error: %s", err)
@@ -174,6 +183,7 @@ func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 func PingDBHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Recieved request with method: %s from: %s. Ping DB",
 		r.Method, r.Host)
+
 	dbObj := db.ConnectToDB(cfg.DatabaseDSN)
 	defer func(dbObj *db.Database) {
 		err := dbObj.CloseDBConn()
@@ -182,7 +192,9 @@ func PingDBHandler(w http.ResponseWriter, r *http.Request) {
 
 		}
 	}(dbObj)
-	err := dbObj.Ping()
+	ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+	defer cancel()
+	err := dbObj.Ping(ctx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -205,14 +217,15 @@ func GetAPIUserURLHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNoContent)
 	}
-	res, err := authStorage.Read(authCookie.Value)
-	if len(res) == 0 {
-		http.Error(w, err.Error(), http.StatusNoContent)
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	res, status, err := currStorage.ReadAll(authCookie.Value, ctx)
+	if err != nil {
+		http.Error(w, err.Error(), status)
 	}
 	w.Header().Set("content-type", "application/json")
-	//w.Header().Set("Location", res)
-	w.WriteHeader(http.StatusOK)
-	_, err = w.Write(res)
+	w.WriteHeader(status)
+	_, err = w.Write([]byte(res))
 	if err != nil {
 		log.Printf("Error: %s", err)
 		return
@@ -220,7 +233,7 @@ func GetAPIUserURLHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func urlDecoder(b []byte, cookieValue string) (string, int, error) {
+func urlDecoder(b []byte, cookieValue string, ctx context.Context) (string, int, error) {
 	var decodeStruct DecodeStruct
 
 	err := json.Unmarshal(b, &decodeStruct)
@@ -228,13 +241,9 @@ func urlDecoder(b []byte, cookieValue string) (string, int, error) {
 		return "", http.StatusBadRequest, errors.New("invalid request body")
 	}
 
-	res, status, err := currStorage.Write([]byte(decodeStruct.URL))
+	res, status, err := currStorage.Write([]byte(decodeStruct.URL), cookieValue, ctx)
 	if err != nil {
 		return "", status, err
-	}
-	err = authStorage.Write([]byte(decodeStruct.URL), cookieValue)
-	if err != nil {
-		return "", http.StatusInternalServerError, err
 	}
 
 	return res, http.StatusCreated, nil
