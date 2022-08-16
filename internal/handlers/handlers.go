@@ -32,11 +32,11 @@ func init() {
 
 	if cfg.DatabaseDSN != "" {
 		dbObj := db.ConnectToDB(cfg.DatabaseDSN)
-		err := dbObj.CreateURLsTable()
+		err := dbObj.CreateAuthTable()
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = dbObj.CreateAuthTable()
+		err = dbObj.CreateURLsTable()
 		if err != nil {
 			log.Fatal(err)
 		}
