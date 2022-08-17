@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -84,16 +83,16 @@ func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 	//ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
 	//defer cancel()
 
-	res, status, err := currStorage.Write(writeToStruct.ReqBody, writeToStruct.CookieValue)
+	res, err := currStorage.Write(writeToStruct.ReqBody, writeToStruct.CookieValue)
 	if err != nil {
 		log.Printf("Error: %s", err)
-		http.Error(w, err.Error(), status)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	//setting headers
 	w.Header().Set("content-type", "application/json")
-	w.WriteHeader(status)
+	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write([]byte(res))
 	if err != nil {
 		log.Printf("Error: %s", err)
@@ -156,20 +155,13 @@ func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 	//calls getFullUrlHandler on GET method
 	log.Printf("Recieved request with method: %s from: %s with ID_PARAM: %s",
 		r.Method, r.Host, r.URL.String()[1:])
-	authCookie, err := r.Cookie("auth")
-	if err != nil {
-		log.Printf("Error: %s", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-	//
 	//ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
 	//defer cancel()
 
-	fmt.Println("Cookie value: ", authCookie.Value)
 	reqURL := r.URL.String()
-	res, status, err := currStorage.Read(reqURL[1:], authCookie.Value)
+	res, err := currStorage.Read(reqURL[1:])
 	if err != nil {
-		http.Error(w, err.Error(), status)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		log.Printf("Error: %s", err)
 		return
 	}
@@ -177,7 +169,7 @@ func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 	//setting headers
 	w.Header().Set("content-type", "application/json")
 	w.Header().Set("Location", res)
-	w.WriteHeader(status)
+	w.WriteHeader(http.StatusTemporaryRedirect)
 	_, err = w.Write([]byte(""))
 	if err != nil {
 		log.Printf("Error: %s", err)
@@ -225,12 +217,12 @@ func GetAPIUserURLHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	//ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
 	//defer cancel()
-	res, status, err := currStorage.ReadAll(authCookie.Value)
+	res, err := currStorage.ReadAll(authCookie.Value)
 	if err != nil {
-		http.Error(w, err.Error(), status)
+		http.Error(w, err.Error(), http.StatusNotFound)
 	}
 	w.Header().Set("content-type", "application/json")
-	w.WriteHeader(status)
+	w.WriteHeader(http.StatusOK)
 	_, err = w.Write([]byte(res))
 	if err != nil {
 		log.Printf("Error: %s", err)
@@ -247,9 +239,9 @@ func urlDecoder(b []byte, cookieValue string) (string, int, error) {
 		return "", http.StatusBadRequest, errors.New("invalid request body")
 	}
 
-	res, status, err := currStorage.Write([]byte(decodeStruct.URL), cookieValue)
+	res, err := currStorage.Write([]byte(decodeStruct.URL), cookieValue)
 	if err != nil {
-		return "", status, err
+		return "", http.StatusInternalServerError, err
 	}
 
 	return res, http.StatusCreated, nil

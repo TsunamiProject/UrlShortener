@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 
 	"github.com/TsunamiProject/UrlShortener.git/internal/db"
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
@@ -32,9 +31,9 @@ func GetDBStorage() (*DBStorage, error) {
 	return &DBStorage{db: dbObj}, nil
 }
 
-func (db *DBStorage) Write(b []byte, authCookieValue string) (string, int, error) {
+func (db *DBStorage) Write(b []byte, authCookieValue string) (string, error) {
 	if len(b) == 0 {
-		return "", http.StatusBadRequest, errors.New("request body is empty")
+		return "", errors.New("request body is empty")
 	}
 	urls := &JSONURL{
 		ShortURL:    shorten.EncodeString(b),
@@ -43,27 +42,27 @@ func (db *DBStorage) Write(b []byte, authCookieValue string) (string, int, error
 
 	err := db.db.InsertRow(authCookieValue, urls.ShortURL, urls.OriginalURL)
 	if err != nil {
-		return "", http.StatusInternalServerError, err
+		return "", err
 	}
 
 	shortenURL := fmt.Sprintf("%s/%s", cfg.BaseURL, urls.ShortURL)
 
-	return shortenURL, http.StatusCreated, nil
+	return shortenURL, nil
 }
 
-func (db *DBStorage) Read(shortURL string, authCookieValue string) (string, int, error) {
-	row, err := db.db.GetRow(shortURL, authCookieValue)
+func (db *DBStorage) Read(shortURL string) (string, error) {
+	row, err := db.db.GetURLRow(shortURL)
 	if err != nil || row == "" {
-		return "", http.StatusNotFound, fmt.Errorf("there are no URLs with ID: %s", shortURL)
+		return "", fmt.Errorf("there are no URLs with ID: %s", shortURL)
 	}
 
-	return row, http.StatusTemporaryRedirect, nil
+	return row, nil
 }
 
-func (db *DBStorage) ReadAll(authCookieValue string) (string, int, error) {
+func (db *DBStorage) ReadAll(authCookieValue string) (string, error) {
 	rows, err := db.db.GetAllRows(authCookieValue)
 	if err != nil {
-		return "", http.StatusNotFound, fmt.Errorf("there are no URLs shortened by user: %s", authCookieValue)
+		return "", fmt.Errorf("there are no URLs shortened by user: %s", authCookieValue)
 	}
 	var urlsList []JSONURL
 	var shortURL string
@@ -71,7 +70,7 @@ func (db *DBStorage) ReadAll(authCookieValue string) (string, int, error) {
 	for rows.Next() {
 		if err := rows.Scan(&shortURL, &originalURL); err != nil {
 			log.Fatal("here?", err)
-			return "", http.StatusInternalServerError, err
+			return "", err
 		}
 		urlsList = append(urlsList, JSONURL{
 			ShortURL:    fmt.Sprintf("%s/%s", cfg.BaseURL, shortURL),
@@ -88,15 +87,15 @@ func (db *DBStorage) ReadAll(authCookieValue string) (string, int, error) {
 	err = rows.Err()
 	if err != nil {
 		log.Fatal("here?", err)
-		return "", http.StatusInternalServerError, err
+		return "", err
 	}
 	if len(urlsList) == 0 {
-		return "", http.StatusNotFound, fmt.Errorf("there are no URLs shortened by user: %s", authCookieValue)
+		return "", fmt.Errorf("there are no URLs shortened by user: %s", authCookieValue)
 
 	}
 	res, err := json.Marshal(urlsList)
 	if err != nil {
-		return "", http.StatusInternalServerError, err
+		return "", err
 	}
-	return string(res), http.StatusOK, nil
+	return string(res), nil
 }

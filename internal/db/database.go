@@ -85,12 +85,12 @@ func (dbObj *Database) InsertRow(authCookieValue string, shortURL string, origin
 	return nil
 }
 
-func (dbObj *Database) GetRow(authCookieValue string, shortURL string) (string, error) {
-	getOriginalURLQueryString := `SELECT ORIGINALURL FROM noauthurls WHERE AUTHID='%s' AND SHORTURL='%s' LIMIT 1`
+func (dbObj *Database) GetURLRow(shortURL string) (string, error) {
+	getOriginalURLQueryString := `SELECT ORIGINALURL FROM noauthurls WHERE SHORTURL='%s' LIMIT 1`
 	var originalURL string
 
 	err := dbObj.db.QueryRow(fmt.Sprintf(getOriginalURLQueryString,
-		shortURL, authCookieValue)).Scan(&originalURL)
+		shortURL)).Scan(&originalURL)
 	if err == sql.ErrNoRows {
 		return "", err
 	}

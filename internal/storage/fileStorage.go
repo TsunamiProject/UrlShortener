@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
@@ -26,55 +25,55 @@ type FileStruct struct {
 }
 
 //return short url from original url which must be in request body, status code and error
-func (f *FileStorage) Write(b []byte, authCookieValue string) (string, int, error) {
+func (f *FileStorage) Write(b []byte, authCookieValue string) (string, error) {
 	if len(b) == 0 {
-		return "", http.StatusBadRequest, errors.New("request body is empty")
+		return "", errors.New("request body is empty")
 	}
 
 	file, err := os.OpenFile(cfg.FileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		return "", http.StatusInternalServerError, nil
+		return "", nil
 	}
 	toFile := &FileStruct{
 		CookieValue: authCookieValue,
 		URLs: JSONURL{
-			ShortURL:    shorten.EncodeString(b),
+			ShortURL:    fmt.Sprintf("%s/%s", cfg.BaseURL, shorten.EncodeString(b)),
 			OriginalURL: string(b),
 		},
 	}
 	res, err := json.Marshal(toFile)
 	if err != nil {
-		return "", http.StatusInternalServerError, nil
+		return "", nil
 	}
 
 	_, err = file.Write([]byte(fmt.Sprintf("%s\n", res)))
 	if err != nil {
 		err = file.Close()
 		if err != nil {
-			return "", http.StatusInternalServerError, nil
+			return "", nil
 		}
-		return "", http.StatusInternalServerError, nil
+		return "", nil
 	}
 
 	err = file.Close()
 	if err != nil {
-		return "", http.StatusInternalServerError, nil
+		return "", nil
 	}
 
 	shortenURL := fmt.Sprintf("%s/%s", cfg.BaseURL, shorten.EncodeString(b))
 
-	return shortenURL, http.StatusCreated, nil
+	return shortenURL, nil
 }
 
 //return original url by ID as URL param, status code and error
-func (f *FileStorage) Read(shortURL string, authCookieValue string) (string, int, error) {
+func (f *FileStorage) Read(shortURL string) (string, error) {
 	if len(shortURL) == 0 {
-		return "", http.StatusBadRequest, errors.New("request body is empty")
+		return "", errors.New("request body is empty")
 	}
 
 	file, err := os.OpenFile(cfg.FileStoragePath, os.O_CREATE|os.O_RDONLY, 0666)
 	if err != nil {
-		return "", http.StatusInternalServerError, nil
+		return "", nil
 	}
 	scanner := bufio.NewScanner(file)
 
@@ -85,32 +84,32 @@ func (f *FileStorage) Read(shortURL string, authCookieValue string) (string, int
 		if err != nil {
 			continue
 		}
-		if temp.CookieValue == authCookieValue && temp.URLs.ShortURL == shortURL {
+		if temp.URLs.ShortURL == fmt.Sprintf("%s/%s", cfg.BaseURL, shortURL) {
 			originalURL = temp.URLs.OriginalURL
 			break
 		}
 	}
 
 	if err = scanner.Err(); err != nil {
-		return "", http.StatusInternalServerError, nil
+		return "", nil
 	}
 
 	err = file.Close()
 	if err != nil {
-		return "", http.StatusInternalServerError, nil
+		return "", nil
 	}
 
 	if originalURL == "" {
-		return "", http.StatusNotFound, fmt.Errorf("there are no URLs with ID: %s", shortURL)
+		return "", fmt.Errorf("there are no URLs with ID: %s", shortURL)
 	}
 
-	return originalURL, http.StatusTemporaryRedirect, nil
+	return originalURL, nil
 }
 
-func (f *FileStorage) ReadAll(authCookieValue string) (string, int, error) {
+func (f *FileStorage) ReadAll(authCookieValue string) (string, error) {
 	file, err := os.OpenFile(cfg.FileStoragePath, os.O_CREATE|os.O_RDONLY, 0666)
 	if err != nil {
-		return "", http.StatusInternalServerError, nil
+		return "", nil
 	}
 	scanner := bufio.NewScanner(file)
 
@@ -127,22 +126,22 @@ func (f *FileStorage) ReadAll(authCookieValue string) (string, int, error) {
 	}
 
 	if err = scanner.Err(); err != nil {
-		return "", http.StatusInternalServerError, nil
+		return "", nil
 	}
 
 	err = file.Close()
 	if err != nil {
-		return "", http.StatusInternalServerError, nil
+		return "", nil
 	}
 
 	if len(resList) == 0 {
-		return "", http.StatusNotFound, fmt.Errorf("there are no URLs shortened by user: %s", authCookieValue)
+		return "", fmt.Errorf("there are no URLs shortened by user: %s", authCookieValue)
 	}
 
 	resp, err := json.Marshal(resList)
 	if err != nil {
-		return "", http.StatusInternalServerError, nil
+		return "", nil
 	}
 
-	return string(resp), http.StatusOK, nil
+	return string(resp), nil
 }

@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
-	"reflect"
 	"sync"
 
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
@@ -18,14 +16,6 @@ func GetInMemoryStorage() *URLsWithAuth {
 	return &URLsWithAuth{}
 }
 
-//func GetInMemoryAuthStorage() *URLsWithAuth {
-//	return &URLsWithAuth{}
-//}
-
-//type URLs struct {
-//	URLsStorage sync.Map
-//}
-
 type URLsWithAuth struct {
 	AuthURLsStorage sync.Map
 }
@@ -35,127 +25,108 @@ type JSONURL struct {
 	OriginalURL string `json:"original_url"`
 }
 
-func (u *URLsWithAuth) Write(b []byte, authCookieValue string) (string, int, error) {
+func (u *URLsWithAuth) Write(b []byte, authCookieValue string) (string, error) {
 	if len(b) == 0 {
-		return "", http.StatusBadRequest, errors.New("request body is empty")
+		return "", errors.New("request body is empty")
 	}
-
-	urlsMap := make(map[string][]map[string]string)
-	urlsMapForMarshall := make(map[string][]map[string]string)
-	res, _ := u.AuthURLsStorage.Load(authCookieValue)
-	temp, _ := json.Marshal(res)
-	err := json.Unmarshal(temp, &urlsMapForMarshall)
+	originalURL, shortURL := string(b), shorten.EncodeString(b)
+	urlsMap := make(map[string][]string)
+	urlsMapForMarshall := make(map[string][]string)
+	res, _ := u.AuthURLsStorage.Load(shortURL)
+	temp, err := json.Marshal(res)
 	if err != nil {
-		return "", http.StatusInternalServerError, err
+		return "", err
 	}
 
-	k, v := string(b), shorten.EncodeString(b)
-
-	u.AuthURLsStorage.Delete(authCookieValue)
-
-	for i := 0; i < len(urlsMapForMarshall[authCookieValue]); i++ {
-		urlsMap[authCookieValue] = append(urlsMap[authCookieValue],
-			urlsMapForMarshall[authCookieValue][i])
+	err = json.Unmarshal(temp, &urlsMapForMarshall)
+	if err != nil {
+		return "", err
 	}
 
-	urlsMap[authCookieValue] = append(urlsMap[authCookieValue], map[string]string{k: v})
-	u.AuthURLsStorage.Store(authCookieValue, urlsMap)
-	//_, _ = u.AuthURLsStorage.Load(authCookieValue)
-	u.AuthURLsStorage.Range(func(key, value any) bool {
-		log.Printf("Write: key: %v -- value: %v", key, value)
-		return true
-	})
+	for i := 0; i < len(urlsMapForMarshall[originalURL]); i++ {
+		urlsMap[originalURL] = append(urlsMap[originalURL],
+			urlsMapForMarshall[originalURL][i])
+	}
 
-	//log.Println("Data in memory after storing:", test)
-	resp := fmt.Sprintf("%s/%s", cfg.BaseURL, v)
+	u.AuthURLsStorage.Delete(shortURL)
+	urlsMap[originalURL] = append(urlsMap[originalURL], authCookieValue)
+	u.AuthURLsStorage.Store(shortURL, urlsMap)
 
-	return resp, http.StatusCreated, nil
+	resp := fmt.Sprintf("%s/%s", cfg.BaseURL, shortURL)
+
+	return resp, nil
 }
 
-func (u *URLsWithAuth) Read(shortURL string, authCookie string) (string, int, error) {
-	log.Println("authCookie value:", authCookie)
-	res, ok := u.AuthURLsStorage.Load(authCookie)
+func (u *URLsWithAuth) Read(shortURL string) (string, error) {
+	//read without cookie
+	res, ok := u.AuthURLsStorage.Load(shortURL)
 	log.Println("Data after loading from memory: ", res)
 	if !ok {
-		log.Println("nil load ")
-		u.AuthURLsStorage.Range(func(key, value any) bool {
-			log.Printf("Read: key: %v -- value: %v", key, value)
-			return true
-		})
-		return "", http.StatusNotFound, fmt.Errorf("there are no URLs with ID: %s", shortURL)
+		log.Println("No data")
+		return "", fmt.Errorf("there are no URLs with ID: %s", shortURL)
 	}
 
 	temp, err := json.Marshal(res)
 	if err != nil {
-		return "", http.StatusInternalServerError, err
+		return "", err
 	}
-	urlsWithAuthMapForMarshalling := make(map[string][]map[string]string)
+	urlsWithAuthMapForMarshalling := make(map[string][]string)
 	err = json.Unmarshal(temp, &urlsWithAuthMapForMarshalling)
 	if err != nil {
-		return "", http.StatusInternalServerError, err
+		return "", err
 	}
-	log.Println("Data from memory:", urlsWithAuthMapForMarshalling)
 	var originalURL string
-	for i := 0; i < len(urlsWithAuthMapForMarshalling[authCookie]); i++ {
-		iter := reflect.ValueOf(urlsWithAuthMapForMarshalling[authCookie][i]).MapRange()
-		tempUrlsWithAuth := JSONURL{
-			ShortURL:    "",
-			OriginalURL: "",
-		}
-		for iter.Next() {
-			tempUrlsWithAuth.OriginalURL = iter.Key().String()
-			tempUrlsWithAuth.ShortURL = iter.Value().String()
-			log.Println("tempURLs OriginalURL: ", tempUrlsWithAuth.OriginalURL)
-			log.Println("tempURLs ShortURL: ", tempUrlsWithAuth.ShortURL)
-			if tempUrlsWithAuth.ShortURL == shortURL {
-				originalURL = tempUrlsWithAuth.OriginalURL
-				break
-			}
-		}
-	}
-	if originalURL == "" {
-		log.Println("Original URL not found")
-		return "", http.StatusNotFound, fmt.Errorf("there are no URLs with ID: %s", shortURL)
+	for k := range urlsWithAuthMapForMarshalling {
+		originalURL = k
 	}
 
-	return originalURL, http.StatusTemporaryRedirect, nil
+	return originalURL, nil
 }
 
-func (u *URLsWithAuth) ReadAll(authCookieValue string) (string, int, error) {
-	res, _ := u.AuthURLsStorage.Load(authCookieValue)
-	if res == nil {
-		return "", http.StatusNotFound, fmt.Errorf("there are no URLs shortened by user: %s", authCookieValue)
-	}
+func (u *URLsWithAuth) ReadAll(authCookieValue string) (string, error) {
+	rangeMap := make(map[any]any)
+	u.AuthURLsStorage.Range(func(key, value any) bool {
+		log.Printf("Write: key: %v -- value: %v", key, value)
+		rangeMap[key] = value
+		return true
+	})
 
-	temp, _ := json.Marshal(res)
-	urlsWithAuthMapForMarshalling := make(map[string][]map[string]string)
-	err := json.Unmarshal(temp, &urlsWithAuthMapForMarshalling)
-	if err != nil {
-		return "", http.StatusInternalServerError, err
+	if len(rangeMap) == 0 {
+		return "", fmt.Errorf("there are no URLs shortened by user: %s", authCookieValue)
 	}
 
 	var toMarshallList []JSONURL
-	for i := 0; i < len(urlsWithAuthMapForMarshalling[authCookieValue]); i++ {
-		iter := reflect.ValueOf(urlsWithAuthMapForMarshalling[authCookieValue][i]).MapRange()
-		tempUrlsWithAuth := JSONURL{
-			ShortURL:    "",
-			OriginalURL: "",
+	for short, v := range rangeMap {
+		temp, err := json.Marshal(v)
+		if err != nil {
+			return "", err
 		}
-		for iter.Next() {
-			tempUrlsWithAuth.OriginalURL = iter.Key().String()
-			tempUrlsWithAuth.ShortURL = fmt.Sprintf("%s/%s", cfg.BaseURL, iter.Value().String())
+		urlsWithAuthMapForMarshalling := make(map[string][]string)
+		err = json.Unmarshal(temp, &urlsWithAuthMapForMarshalling)
+		if err != nil {
+			return "", err
 		}
-		toMarshallList = append(toMarshallList, tempUrlsWithAuth)
+		for origin, val := range urlsWithAuthMapForMarshalling {
+			for authIDs := range val {
+				if val[authIDs] == authCookieValue {
+					toMarshallList = append(toMarshallList, JSONURL{
+						ShortURL:    fmt.Sprintf("%s/%v", cfg.BaseURL, short),
+						OriginalURL: origin,
+					})
+				}
+			}
+
+		}
 	}
 
 	if len(toMarshallList) == 0 {
-		return "", http.StatusNotFound, fmt.Errorf("there are no URLs shortened by user: %s", authCookieValue)
+		return "", fmt.Errorf("there are no URLs shortened by user: %s", authCookieValue)
 	}
 
 	resp, err := json.Marshal(toMarshallList)
 	if err != nil {
-		return "", http.StatusInternalServerError, err
+		return "", err
 	}
 
-	return string(resp), http.StatusOK, nil
+	return string(resp), nil
 }
