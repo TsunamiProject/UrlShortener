@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -216,22 +215,20 @@ func GetAPIUserURLHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNoContent)
 	}
-	fmt.Println("AuthCookie is: ", authCookie.Value)
 	//ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
 	//defer cancel()
 	res, err := currStorage.ReadAll(authCookie.Value)
 	if err != nil {
-		log.Println("err is: ", err)
-		http.Error(w, err.Error(), http.StatusNotFound)
+		http.Error(w, err.Error(), http.StatusNoContent)
+	} else {
+		w.Header().Set("content-type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write([]byte(res))
+		if err != nil {
+			log.Printf("Error: %s", err)
+			return
+		}
 	}
-	w.Header().Set("content-type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, err = w.Write([]byte(res))
-	if err != nil {
-		log.Printf("Error: %s", err)
-		return
-	}
-
 }
 
 func urlDecoder(b []byte, cookieValue string) (string, int, error) {

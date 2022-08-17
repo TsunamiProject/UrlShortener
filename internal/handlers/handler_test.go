@@ -104,6 +104,36 @@ func TestMethodNotAllowedHandler(t *testing.T) {
 	runTests(testMap, t)
 }
 
+func TestShortenerApiHandler(t *testing.T) {
+	testMap := make(map[string]tests)
+	testJSON := "{\"url\":\"http://test.com/\"}"
+	testInvalidJSON := "{\"url\":\"http://endxivm.com/y1ry"
+	testResponse := "{\"result\":\"http://localhost:8080/687474703a2f2f746573742e636f6d2f\"}"
+	testMap["#1 Make shorten URL from origin URL with json response. Request body is not empty."] = tests{
+		request:     "/api/shorten",
+		requestBody: testJSON,
+		method:      "POST",
+		want: want{
+			statusCode:  201,
+			response:    testResponse,
+			contentType: "application/json",
+			location:    "",
+		},
+	}
+	testMap["#2 Make shorten URL from origin URL with json response. Request body is invalid."] = tests{
+		request:     "/api/shorten",
+		requestBody: testInvalidJSON,
+		method:      "POST",
+		want: want{
+			statusCode:  400,
+			response:    "invalid request body\n",
+			contentType: "text/plain; charset=utf-8",
+			location:    "",
+		},
+	}
+	runTests(testMap, t)
+}
+
 func TestShortenerHandler(t *testing.T) {
 	testMap := make(map[string]tests)
 	hashStringFirstURL := shorten.EncodeString([]byte(firstTestURL))
@@ -135,44 +165,13 @@ func TestShortenerHandler(t *testing.T) {
 		requestBody: "",
 		method:      "POST",
 		want: want{
-			statusCode:  400,
+			statusCode:  500,
 			response:    "request body is empty\n",
 			contentType: "text/plain; charset=utf-8",
 			location:    "",
 		},
 	}
 	runTests(testMap, t)
-}
-
-func TestShortenerApiHandler(t *testing.T) {
-	testMap := make(map[string]tests)
-	testJSON := "{\"url\":\"http://test.com/\"}"
-	testInvalidJSON := "{\"url\":\"http://endxivm.com/y1ry"
-	testResponse := "{\"result\":\"http://localhost:8080/687474703a2f2f746573742e636f6d2f\"}"
-	testMap["#1 Make shorten URL from origin URL with json response. Request body is not empty."] = tests{
-		request:     "/api/shorten",
-		requestBody: testJSON,
-		method:      "POST",
-		want: want{
-			statusCode:  201,
-			response:    testResponse,
-			contentType: "application/json",
-			location:    "",
-		},
-	}
-	testMap["#2 Make shorten URL from origin URL with json response. Request body is invalid."] = tests{
-		request:     "/api/shorten",
-		requestBody: testInvalidJSON,
-		method:      "POST",
-		want: want{
-			statusCode:  400,
-			response:    "invalid request body\n",
-			contentType: "text/plain; charset=utf-8",
-			location:    "",
-		},
-	}
-	runTests(testMap, t)
-
 }
 
 func TestGetUrlHandler(t *testing.T) {
@@ -211,14 +210,14 @@ func TestGetUserUrlsHandler(t *testing.T) {
 	thirdHashString := shorten.EncodeString([]byte(thirdTestURL))
 	var testResSlice []storage.JSONURL
 	testResSlice = append(testResSlice, storage.JSONURL{
+		ShortURL:    fmt.Sprintf("%s/%s", cfg.BaseURL, secondHashString),
+		OriginalURL: secondTestURL,
+	}, storage.JSONURL{
 		ShortURL:    fmt.Sprintf("%s/%s", cfg.BaseURL, firstHashString),
 		OriginalURL: firstTestURL,
 	}, storage.JSONURL{
 		ShortURL:    fmt.Sprintf("%s/%s", cfg.BaseURL, thirdHashString),
 		OriginalURL: thirdTestURL,
-	}, storage.JSONURL{
-		ShortURL:    fmt.Sprintf("%s/%s", cfg.BaseURL, secondHashString),
-		OriginalURL: secondTestURL,
 	})
 	marshalledResSlice, _ := json.Marshal(testResSlice)
 	testMap["#1 Get User urls by cookie"] = tests{
