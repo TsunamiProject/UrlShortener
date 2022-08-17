@@ -219,6 +219,7 @@ func GetAPIUserURLHandler(w http.ResponseWriter, r *http.Request) {
 	//defer cancel()
 	res, err := currStorage.ReadAll(authCookie.Value)
 	if err != nil {
+		log.Println("err is: ", err)
 		http.Error(w, err.Error(), http.StatusNotFound)
 	}
 	w.Header().Set("content-type", "application/json")
