@@ -31,14 +31,14 @@ type WriteTo struct {
 func init() {
 	if cfg.FileStoragePath != "" {
 		currStorage = storage.GetFileStorage()
-		log.Println("storage is FileStorage")
+		log.Println("Storage is FileStorage")
 	} else {
 		currStorage = storage.GetInMemoryStorage()
-		log.Println("storage is InMemoryStorage")
+		log.Println("Storage is InMemoryStorage")
 	}
 
 	if cfg.DatabaseDSN != "" {
-		log.Println("storage is DBStorage")
+		log.Println("Storage is DBStorage")
 		var err error
 		currStorage, err = storage.GetDBStorage()
 		if err != nil {

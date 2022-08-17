@@ -11,3 +11,5 @@ type Storage interface {
 	Write(b []byte, cookieValue string) (string, int, error)
 	ReadAll(authCookie string) (string, int, error)
 }
+
+//int - смешение уровней абстракций - storage должен быть изолирован

@@ -60,9 +60,13 @@ func (u *URLsWithAuth) Write(b []byte, authCookieValue string) (string, int, err
 
 	urlsMap[authCookieValue] = append(urlsMap[authCookieValue], map[string]string{k: v})
 	u.AuthURLsStorage.Store(authCookieValue, urlsMap)
-	test, _ := u.AuthURLsStorage.Load(authCookieValue)
+	//_, _ = u.AuthURLsStorage.Load(authCookieValue)
+	u.AuthURLsStorage.Range(func(key, value any) bool {
+		log.Printf("Write: key: %v -- value: %v", key, value)
+		return true
+	})
 
-	log.Println("Data in memory after storing:", test)
+	//log.Println("Data in memory after storing:", test)
 	resp := fmt.Sprintf("%s/%s", cfg.BaseURL, v)
 
 	return resp, http.StatusCreated, nil
@@ -70,12 +74,16 @@ func (u *URLsWithAuth) Write(b []byte, authCookieValue string) (string, int, err
 
 func (u *URLsWithAuth) Read(shortURL string, authCookie string) (string, int, error) {
 	log.Println("authCookie value:", authCookie)
-	res, _ := u.AuthURLsStorage.Load(authCookie)
+	res, ok := u.AuthURLsStorage.Load(authCookie)
 	log.Println("Data after loading from memory: ", res)
-	//if res == nil {
-	//	log.Println("nil load ")
-	//	return "", http.StatusNotFound, fmt.Errorf("there are no URLs with ID: %s", shortURL)
-	//}
+	if !ok {
+		log.Println("nil load ")
+		u.AuthURLsStorage.Range(func(key, value any) bool {
+			log.Printf("Read: key: %v -- value: %v", key, value)
+			return true
+		})
+		return "", http.StatusNotFound, fmt.Errorf("there are no URLs with ID: %s", shortURL)
+	}
 
 	temp, err := json.Marshal(res)
 	if err != nil {
