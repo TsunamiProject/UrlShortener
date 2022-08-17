@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -215,6 +216,7 @@ func GetAPIUserURLHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNoContent)
 	}
+	fmt.Println("AuthCookie is: ", authCookie.Value)
 	//ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
 	//defer cancel()
 	res, err := currStorage.ReadAll(authCookie.Value)
