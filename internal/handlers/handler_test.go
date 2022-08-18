@@ -235,3 +235,31 @@ func TestGetUserUrlsHandler(t *testing.T) {
 	}
 	runTests(testMap, t)
 }
+
+func TestShortenAPIBatchHandler(t *testing.T) {
+	testMap := make(map[string]tests)
+	hashStringFirstURL := shorten.EncodeString([]byte(firstTestURL))
+	hashStringThirdURL := shorten.EncodeString([]byte(thirdTestURL))
+	testMap["#1 Make shorten URL from origin URL. Request body is not empty."] = tests{
+		request:     "/",
+		requestBody: firstTestURL,
+		method:      "POST",
+		want: want{
+			statusCode:  201,
+			response:    fmt.Sprintf("%s/%s", cfg.BaseURL, hashStringFirstURL),
+			contentType: "application/json",
+			location:    "",
+		},
+	}
+	testMap["#2 Make shorten URL from origin URL. Request body is not empty."] = tests{
+		request:     "/",
+		requestBody: thirdTestURL,
+		method:      "POST",
+		want: want{
+			statusCode:  201,
+			response:    fmt.Sprintf("%s/%s", cfg.BaseURL, hashStringThirdURL),
+			contentType: "application/json",
+			location:    "",
+		},
+	}
+}
