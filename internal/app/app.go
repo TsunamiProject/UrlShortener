@@ -23,6 +23,7 @@ func NewRouter() chi.Router {
 	router.Get("/ping", handlers.PingDBHandler)
 	router.Post("/", handlers.ShortenerHandler)
 	router.Post("/api/shorten", handlers.ShortenAPIHandler)
+	router.Post("/api/shorten/batch", handlers.ShortenAPIBatchHandler)
 	router.Put("/{}", handlers.MethodNotAllowedHandler)
 	router.Patch("/{}", handlers.MethodNotAllowedHandler)
 
