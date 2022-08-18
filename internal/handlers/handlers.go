@@ -230,6 +230,39 @@ func GetAPIUserURLHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func ShortenAPIBatchHandler(w http.ResponseWriter, r *http.Request) {
+	b, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	log.Printf("Recieved request with method: %s from: %s with r.body: %s",
+		r.Method, r.Host, string(b))
+	err = r.Body.Close()
+	if err != nil {
+		log.Printf("Error: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	authCookie, err := r.Cookie("auth")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNoContent)
+	}
+
+	res, err := currStorage.Batch(b, authCookie.Value)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	} else {
+		w.Header().Set("content-type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, err = w.Write([]byte(res))
+		if err != nil {
+			log.Printf("Error: %s", err)
+			return
+		}
+	}
+}
+
 func urlDecoder(b []byte, cookieValue string) (string, int, error) {
 	var decodeStruct DecodeStruct
 
