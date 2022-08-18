@@ -165,7 +165,6 @@ func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error: %s", err)
 		return
 	}
-	log.Println()
 	//setting headers
 	w.Header().Set("content-type", "application/json")
 	w.Header().Set("Location", res)

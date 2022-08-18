@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
@@ -60,9 +59,7 @@ func (u *URLsWithAuth) Write(b []byte, authCookieValue string) (string, error) {
 func (u *URLsWithAuth) Read(shortURL string) (string, error) {
 	//read without cookie
 	res, ok := u.AuthURLsStorage.Load(shortURL)
-	log.Println("Data after loading from memory: ", res)
 	if !ok {
-		log.Println("No data")
 		return "", fmt.Errorf("there are no URLs with ID: %s", shortURL)
 	}
 
@@ -86,7 +83,6 @@ func (u *URLsWithAuth) Read(shortURL string) (string, error) {
 func (u *URLsWithAuth) ReadAll(authCookieValue string) (string, error) {
 	rangeMap := make(map[any]any)
 	u.AuthURLsStorage.Range(func(key, value any) bool {
-		log.Printf("Write: key: %v -- value: %v", key, value)
 		rangeMap[key] = value
 		return true
 	})
