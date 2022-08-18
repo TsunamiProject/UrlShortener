@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
@@ -22,6 +23,45 @@ type URLsWithAuth struct {
 type JSONURL struct {
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
+}
+
+type BatchStructBefore struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+
+type BatchStructAfter struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
+}
+
+func (u *URLsWithAuth) Batch(b []byte, authCookieValue string) (string, error) {
+	if len(b) == 0 {
+		return "", errors.New("request body is empty")
+	}
+	var batchListBefore []BatchStructBefore
+	err := json.Unmarshal(b, &batchListBefore)
+	if err != nil {
+		return "", err
+	}
+	log.Println(batchListBefore)
+	var batchListAfter []BatchStructAfter
+	for i := range batchListBefore {
+		write, err := u.Write([]byte(batchListBefore[i].OriginalURL), authCookieValue)
+		if err != nil {
+			return "", err
+		}
+		batchListAfter = append(batchListAfter, BatchStructAfter{
+			CorrelationID: batchListBefore[i].CorrelationID,
+			ShortURL:      write,
+		})
+	}
+	resp, err := json.Marshal(batchListAfter)
+	if err != nil {
+		return "", err
+	}
+
+	return string(resp), nil
 }
 
 func (u *URLsWithAuth) Write(b []byte, authCookieValue string) (string, error) {

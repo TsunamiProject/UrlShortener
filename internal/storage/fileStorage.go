@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
 )
 
-var _ Storage = &FileStorage{}
+//var _ Storage = &FileStorage{}
 
 func GetFileStorage() *FileStorage {
 	return &FileStorage{}
@@ -22,6 +23,35 @@ type FileStorage struct {
 type FileStruct struct {
 	CookieValue string
 	URLs        JSONURL
+}
+
+func (f *FileStorage) Batch(b []byte, authCookieValue string) (string, error) {
+	if len(b) == 0 {
+		return "", errors.New("request body is empty")
+	}
+	var batchListBefore []BatchStructBefore
+	err := json.Unmarshal(b, &batchListBefore)
+	if err != nil {
+		return "", err
+	}
+	log.Println(batchListBefore)
+	var batchListAfter []BatchStructAfter
+	for i := range batchListBefore {
+		write, err := f.Write([]byte(batchListBefore[i].OriginalURL), authCookieValue)
+		if err != nil {
+			return "", err
+		}
+		batchListAfter = append(batchListAfter, BatchStructAfter{
+			CorrelationID: batchListBefore[i].CorrelationID,
+			ShortURL:      write,
+		})
+	}
+	resp, err := json.Marshal(batchListAfter)
+	if err != nil {
+		return "", err
+	}
+
+	return string(resp), nil
 }
 
 //return short url from original url which must be in request body, status code and error

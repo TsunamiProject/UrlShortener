@@ -31,7 +31,7 @@ func GetDBStorage() (*DBStorage, error) {
 	return &DBStorage{db: dbObj}, nil
 }
 
-func (db *DBStorage) Write(b []byte, authCookieValue string) (string, error) {
+func (dbObj *DBStorage) Write(b []byte, authCookieValue string) (string, error) {
 	if len(b) == 0 {
 		return "", errors.New("request body is empty")
 	}
@@ -40,7 +40,7 @@ func (db *DBStorage) Write(b []byte, authCookieValue string) (string, error) {
 		OriginalURL: string(b),
 	}
 
-	err := db.db.InsertRow(authCookieValue, urls.ShortURL, urls.OriginalURL)
+	err := dbObj.db.InsertRow(authCookieValue, urls.ShortURL, urls.OriginalURL)
 	if err != nil {
 		return "", err
 	}
@@ -50,8 +50,8 @@ func (db *DBStorage) Write(b []byte, authCookieValue string) (string, error) {
 	return shortenURL, nil
 }
 
-func (db *DBStorage) Read(shortURL string) (string, error) {
-	row, err := db.db.GetURLRow(shortURL)
+func (dbObj *DBStorage) Read(shortURL string) (string, error) {
+	row, err := dbObj.db.GetURLRow(shortURL)
 	if err != nil || row == "" {
 		return "", fmt.Errorf("there are no URLs with ID: %s", shortURL)
 	}
@@ -59,8 +59,8 @@ func (db *DBStorage) Read(shortURL string) (string, error) {
 	return row, nil
 }
 
-func (db *DBStorage) ReadAll(authCookieValue string) (string, error) {
-	rows, err := db.db.GetAllRows(authCookieValue)
+func (dbObj *DBStorage) ReadAll(authCookieValue string) (string, error) {
+	rows, err := dbObj.db.GetAllRows(authCookieValue)
 	if err != nil {
 		return "", fmt.Errorf("there are no URLs shortened by user: %s", authCookieValue)
 	}
@@ -69,7 +69,6 @@ func (db *DBStorage) ReadAll(authCookieValue string) (string, error) {
 	var originalURL string
 	for rows.Next() {
 		if err := rows.Scan(&shortURL, &originalURL); err != nil {
-			log.Fatal("here?", err)
 			return "", err
 		}
 		urlsList = append(urlsList, JSONURL{
@@ -98,4 +97,30 @@ func (db *DBStorage) ReadAll(authCookieValue string) (string, error) {
 		return "", err
 	}
 	return string(res), nil
+}
+
+func (dbObj *DBStorage) Batch(b []byte, authCookieValue string) (string, error) {
+	if len(b) == 0 {
+		return "", errors.New("request body is empty")
+	}
+
+	var batchListBefore []db.BatchBefore
+	err := json.Unmarshal(b, &batchListBefore)
+	if err != nil {
+		return "", err
+	}
+	batch, err := dbObj.db.Batch(batchListBefore, authCookieValue)
+	if err != nil {
+		return "", err
+	}
+	for i := range batch {
+		batch[i].ShortURL = fmt.Sprintf("%s/%s", cfg.BaseURL, batch[i].ShortURL)
+	}
+
+	resp, err := json.Marshal(batch)
+	if err != nil {
+		return "", err
+	}
+
+	return string(resp), nil
 }
