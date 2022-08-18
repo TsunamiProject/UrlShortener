@@ -41,8 +41,9 @@ func (dbObj *DBStorage) Write(b []byte, authCookieValue string) (string, error) 
 	}
 
 	err := dbObj.db.InsertRow(authCookieValue, urls.ShortURL, urls.OriginalURL)
-	if err != nil {
-		return "", err
+	if errors.Is(err, db.ErrDuplicateURL) {
+		shortenURL := fmt.Sprintf("%s/%s", cfg.BaseURL, urls.ShortURL)
+		return shortenURL, err
 	}
 
 	shortenURL := fmt.Sprintf("%s/%s", cfg.BaseURL, urls.ShortURL)

@@ -80,19 +80,22 @@ func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 		CookieValue: authCookie.Value,
 	}
 
-	//ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
-	//defer cancel()
+	var statusCode int
 
 	res, err := currStorage.Write(writeToStruct.ReqBody, writeToStruct.CookieValue)
-	if err != nil {
+	if errors.Is(err, db.ErrDuplicateURL) {
+		statusCode = http.StatusConflict
+	} else if err == nil {
+		statusCode = http.StatusCreated
+	} else {
 		log.Printf("Error: %s", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		statusCode = http.StatusInternalServerError
+		http.Error(w, err.Error(), statusCode)
 	}
 
 	//setting headers
 	w.Header().Set("content-type", "application/json")
-	w.WriteHeader(http.StatusCreated)
+	w.WriteHeader(statusCode)
 	_, err = w.Write([]byte(res))
 	if err != nil {
 		log.Printf("Error: %s", err)
@@ -122,26 +125,21 @@ func ShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	//
-	//ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
-	//defer cancel()
 
-	res, status, err := urlDecoder(b, authCookie.Value)
+	res, statusCode, err := urlDecoder(b, authCookie.Value)
 	if err != nil {
 		log.Printf("Error: %s", err)
-		http.Error(w, err.Error(), status)
+		http.Error(w, err.Error(), statusCode)
 		return
 	}
 
-	result, status, err := urlEncoder(res)
+	result, err := urlEncoder(res)
 	if err != nil {
-		log.Printf("Error: %s", err)
-		http.Error(w, err.Error(), status)
-		return
+		statusCode = http.StatusBadRequest
 	}
 	//setting headers
 	w.Header().Set("content-type", "application/json")
-	w.WriteHeader(status)
+	w.WriteHeader(statusCode)
 	_, err = w.Write(result)
 	if err != nil {
 		log.Printf("Error: %s", err)
@@ -266,25 +264,33 @@ func ShortenAPIBatchHandler(w http.ResponseWriter, r *http.Request) {
 func urlDecoder(b []byte, cookieValue string) (string, int, error) {
 	var decodeStruct DecodeStruct
 
+	var statusCode int
 	err := json.Unmarshal(b, &decodeStruct)
 	if err != nil {
 		return "", http.StatusBadRequest, errors.New("invalid request body")
 	}
 
 	res, err := currStorage.Write([]byte(decodeStruct.URL), cookieValue)
-	if err != nil {
-		return "", http.StatusInternalServerError, err
+	if errors.Is(err, db.ErrDuplicateURL) {
+		statusCode = http.StatusConflict
+		return res, statusCode, nil
+	} else if err == nil {
+		statusCode = http.StatusCreated
+	} else {
+		log.Printf("Error: %s", err)
+		statusCode = http.StatusInternalServerError
+		return "", statusCode, err
 	}
 
-	return res, http.StatusCreated, nil
+	return res, statusCode, nil
 }
 
-func urlEncoder(r string) ([]byte, int, error) {
+func urlEncoder(r string) ([]byte, error) {
 	encodeStruct := EncodeStruct{Result: r}
 	res, err := json.Marshal(encodeStruct)
 	if err != nil {
-		return []byte(""), http.StatusBadRequest, err
+		return []byte(""), err
 	}
 
-	return res, http.StatusCreated, nil
+	return res, nil
 }

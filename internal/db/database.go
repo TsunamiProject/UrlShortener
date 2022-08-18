@@ -26,15 +26,17 @@ type BatchAfter struct {
 const (
 	urlsTableQueryString = `CREATE TABLE IF NOT EXISTS NOAUTHURLS (
                          	AUTHID varchar(255),
-                         	SHORTURL VARCHAR(255),
+                         	SHORTURL VARCHAR(255) UNIQUE,
                          	ORIGINALURL varchar(255),
                          	FOREIGN KEY (AUTHID) REFERENCES AUTHURLS(AUTHID)
                            )`
 	authIDTableQueryString = `CREATE TABLE IF NOT EXISTS AUTHURLS(
                        AUTHID varchar(255) PRIMARY KEY
 					)`
-	insertRowAuthQueryString  = `INSERT INTO authurls(authid) VALUES ($1) ON CONFLICT DO NOTHING`
-	insertRowURLsQueryString  = `INSERT INTO noauthurls(authid, shorturl, originalurl) VALUES ($1,$2,$3)`
+	uniqueShortURLIndexQueryString = `CREATE UNIQUE INDEX IF NOT EXISTS shorturl ON noauthurls (shorturl)`
+	insertRowAuthQueryString       = `INSERT INTO authurls(authid) VALUES ($1) ON CONFLICT DO NOTHING`
+	insertRowURLsQueryString       = `INSERT INTO noauthurls(authid, shorturl, originalurl) VALUES ($1,$2,$3) 
+								ON CONFLICT (shorturl) DO UPDATE SET shorturl=$2 RETURNING authid`
 	getOriginalURLQueryString = `SELECT ORIGINALURL FROM noauthurls WHERE SHORTURL=$1 LIMIT 1`
 	getOriginalURLsByCookie   = `SELECT SHORTURL,ORIGINALURL FROM noauthurls WHERE AUTHID=$1`
 )
@@ -70,6 +72,10 @@ func (dbObj *Database) CreateURLsTable() error {
 	if err != nil {
 		return err
 	}
+	_, err = dbObj.db.Exec(uniqueShortURLIndexQueryString)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -90,10 +96,10 @@ func (dbObj *Database) InsertRow(authCookieValue string, shortURL string, origin
 	if err != nil {
 		return err
 	}
-
-	_, err = dbObj.db.Exec(insertRowURLsQueryString, authCookieValue, shortURL, originalURL)
-	if err != nil {
-		return err
+	var res string
+	err = dbObj.db.QueryRow(insertRowURLsQueryString, authCookieValue, shortURL, originalURL).Scan(&res)
+	if res != shortURL {
+		return ErrDuplicateURL
 	}
 
 	return nil
