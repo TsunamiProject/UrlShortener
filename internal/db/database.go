@@ -2,7 +2,6 @@ package db
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
@@ -37,6 +36,7 @@ const (
 	insertRowAuthQueryString  = `INSERT INTO authurls(authid) VALUES ($1) ON CONFLICT DO NOTHING`
 	insertRowURLsQueryString  = `INSERT INTO noauthurls(authid, shorturl, originalurl) VALUES ($1,$2,$3)`
 	getOriginalURLQueryString = `SELECT ORIGINALURL FROM noauthurls WHERE SHORTURL=$1 LIMIT 1`
+	getOriginalURLsByCookie   = `SELECT SHORTURL,ORIGINALURL FROM noauthurls WHERE AUTHID=$1`
 )
 
 func ConnectToDB(databaseDsn string) *Database {
@@ -112,8 +112,8 @@ func (dbObj *Database) GetURLRow(shortURL string) (string, error) {
 }
 
 func (dbObj *Database) GetAllRows(authCookieValue string) (*sql.Rows, error) {
-	rows, err := dbObj.db.Query(fmt.Sprintf(getOriginalURLQueryString,
-		authCookieValue))
+	rows, err := dbObj.db.Query(getOriginalURLsByCookie,
+		authCookieValue)
 	if err == sql.ErrNoRows {
 		return nil, err
 	}
