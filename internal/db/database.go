@@ -6,11 +6,38 @@ import (
 	"log"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
+
+	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
 )
 
 type Database struct {
 	db *sql.DB
 }
+
+type BatchBefore struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+
+type BatchAfter struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
+}
+
+const (
+	urlsTableQueryString = `CREATE TABLE IF NOT EXISTS NOAUTHURLS (
+                         	AUTHID varchar(255),
+                         	SHORTURL VARCHAR(255),
+                         	ORIGINALURL varchar(255),
+                         	FOREIGN KEY (AUTHID) REFERENCES AUTHURLS(AUTHID)
+                           )`
+	authIDTableQueryString = `CREATE TABLE IF NOT EXISTS AUTHURLS(
+                       AUTHID varchar(255) PRIMARY KEY
+					)`
+	insertRowAuthQueryString  = `INSERT INTO authurls(authid) VALUES ($1) ON CONFLICT DO NOTHING`
+	insertRowURLsQueryString  = `INSERT INTO noauthurls(authid, shorturl, originalurl) VALUES ($1,$2,$3)`
+	getOriginalURLQueryString = `SELECT ORIGINALURL FROM noauthurls WHERE SHORTURL=$1 LIMIT 1`
+)
 
 func ConnectToDB(databaseDsn string) *Database {
 	db, err := sql.Open("pgx", databaseDsn)
@@ -37,13 +64,6 @@ func (dbObj *Database) CloseDBConn() error {
 }
 
 func (dbObj *Database) CreateURLsTable() error {
-	urlsTableQueryString := `CREATE TABLE IF NOT EXISTS NOAUTHURLS (
-                         	AUTHID varchar(255),
-                         	SHORTURL VARCHAR(255),
-                         	ORIGINALURL varchar(255),
-                         	FOREIGN KEY (AUTHID) REFERENCES AUTHURLS(AUTHID)
-                           )`
-
 	//ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	//defer cancel()
 	_, err := dbObj.db.Exec(urlsTableQueryString)
@@ -55,9 +75,6 @@ func (dbObj *Database) CreateURLsTable() error {
 }
 
 func (dbObj *Database) CreateAuthTable() error {
-	authIDTableQueryString := `CREATE TABLE IF NOT EXISTS AUTHURLS(
-                       AUTHID varchar(255) PRIMARY KEY
-					)`
 	//ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	//defer cancel()
 	_, err := dbObj.db.Exec(authIDTableQueryString)
@@ -69,15 +86,12 @@ func (dbObj *Database) CreateAuthTable() error {
 }
 
 func (dbObj *Database) InsertRow(authCookieValue string, shortURL string, originalURL string) error {
-	insertRowAuthQueryString := `INSERT INTO authurls VALUES ('%s') ON CONFLICT DO NOTHING`
-	insertRowURLsQueryString := `INSERT INTO noauthurls VALUES ('%s', '%s', '%s')`
-
-	_, err := dbObj.db.Exec(fmt.Sprintf(insertRowAuthQueryString, authCookieValue))
+	_, err := dbObj.db.Exec(insertRowAuthQueryString, authCookieValue)
 	if err != nil {
 		return err
 	}
 
-	_, err = dbObj.db.Exec(fmt.Sprintf(insertRowURLsQueryString, authCookieValue, shortURL, originalURL))
+	_, err = dbObj.db.Exec(insertRowURLsQueryString, authCookieValue, shortURL, originalURL)
 	if err != nil {
 		return err
 	}
@@ -86,11 +100,10 @@ func (dbObj *Database) InsertRow(authCookieValue string, shortURL string, origin
 }
 
 func (dbObj *Database) GetURLRow(shortURL string) (string, error) {
-	getOriginalURLQueryString := `SELECT ORIGINALURL FROM noauthurls WHERE SHORTURL='%s' LIMIT 1`
 	var originalURL string
 
-	err := dbObj.db.QueryRow(fmt.Sprintf(getOriginalURLQueryString,
-		shortURL)).Scan(&originalURL)
+	err := dbObj.db.QueryRow(getOriginalURLQueryString,
+		shortURL).Scan(&originalURL)
 	if err == sql.ErrNoRows {
 		return "", err
 	}
@@ -99,8 +112,6 @@ func (dbObj *Database) GetURLRow(shortURL string) (string, error) {
 }
 
 func (dbObj *Database) GetAllRows(authCookieValue string) (*sql.Rows, error) {
-	getOriginalURLQueryString := `SELECT SHORTURL,ORIGINALURL FROM noauthurls WHERE AUTHID='%s'`
-
 	rows, err := dbObj.db.Query(fmt.Sprintf(getOriginalURLQueryString,
 		authCookieValue))
 	if err == sql.ErrNoRows {
@@ -108,4 +119,42 @@ func (dbObj *Database) GetAllRows(authCookieValue string) (*sql.Rows, error) {
 	}
 
 	return rows, nil
+}
+
+func (dbObj *Database) Batch(batchList []BatchBefore, authCookieValue string) ([]BatchAfter, error) {
+	_, err := dbObj.db.Exec(insertRowAuthQueryString, authCookieValue)
+	if err != nil {
+		//fmt.Println("Here")
+		return nil, err
+	}
+
+	tx, err := dbObj.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	stmt, err := tx.Prepare(insertRowURLsQueryString)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	var resList []BatchAfter
+	for i := range batchList {
+		if _, err = stmt.Exec(authCookieValue, shorten.EncodeString([]byte(batchList[i].OriginalURL)),
+			batchList[i].OriginalURL); err != nil {
+			return nil, err
+		}
+		resList = append(resList, BatchAfter{
+			CorrelationID: batchList[i].CorrelationID,
+			ShortURL:      shorten.EncodeString([]byte(batchList[i].OriginalURL)),
+		})
+	}
+
+	if err := tx.Commit(); err != nil {
+		log.Fatalf("update drivers: unable to commit: %v", err)
+		return nil, err
+	}
+
+	return resList, nil
 }
