@@ -2,8 +2,10 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"log"
 
+	"github.com/gofrs/uuid"
 	_ "github.com/jackc/pgx/v4/stdlib"
 
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
@@ -25,18 +27,14 @@ type BatchAfter struct {
 
 const (
 	urlsTableQueryString = `CREATE TABLE IF NOT EXISTS NOAUTHURLS (
+    						ID varchar(255),
                          	AUTHID varchar(255),
-                         	SHORTURL VARCHAR(255) UNIQUE,
-                         	ORIGINALURL varchar(255),
-                         	FOREIGN KEY (AUTHID) REFERENCES AUTHURLS(AUTHID)
+                         	SHORTURL VARCHAR(255),
+                         	ORIGINALURL varchar(255) UNIQUE
                            )`
-	authIDTableQueryString = `CREATE TABLE IF NOT EXISTS AUTHURLS(
-                       AUTHID varchar(255) PRIMARY KEY
-					)`
-	uniqueShortURLIndexQueryString = `CREATE UNIQUE INDEX IF NOT EXISTS shorturl ON noauthurls (shorturl)`
-	insertRowAuthQueryString       = `INSERT INTO authurls(authid) VALUES ($1) ON CONFLICT DO NOTHING`
-	insertRowURLsQueryString       = `INSERT INTO noauthurls(authid, shorturl, originalurl) VALUES ($1,$2,$3) 
-								ON CONFLICT (shorturl) DO UPDATE SET shorturl=$2 RETURNING authid`
+	insertRowURLsQueryString = `INSERT INTO noauthurls(id, authid, shorturl, originalurl) VALUES ($1,$2,$3,$4) 
+									  ON CONFLICT (originalurl)
+									  DO UPDATE SET authid=$2 RETURNING id`
 	getOriginalURLQueryString = `SELECT ORIGINALURL FROM noauthurls WHERE SHORTURL=$1 LIMIT 1`
 	getOriginalURLsByCookie   = `SELECT SHORTURL,ORIGINALURL FROM noauthurls WHERE AUTHID=$1`
 )
@@ -66,24 +64,7 @@ func (dbObj *Database) CloseDBConn() error {
 }
 
 func (dbObj *Database) CreateURLsTable() error {
-	//ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	//defer cancel()
 	_, err := dbObj.db.Exec(urlsTableQueryString)
-	if err != nil {
-		return err
-	}
-	_, err = dbObj.db.Exec(uniqueShortURLIndexQueryString)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (dbObj *Database) CreateAuthTable() error {
-	//ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	//defer cancel()
-	_, err := dbObj.db.Exec(authIDTableQueryString)
 	if err != nil {
 		return err
 	}
@@ -92,14 +73,14 @@ func (dbObj *Database) CreateAuthTable() error {
 }
 
 func (dbObj *Database) InsertRow(authCookieValue string, shortURL string, originalURL string) error {
-	_, err := dbObj.db.Exec(insertRowAuthQueryString, authCookieValue)
+	var res string
+	uniqueID, _ := uuid.NewV1()
+	err := dbObj.db.QueryRow(insertRowURLsQueryString, uniqueID.String(), authCookieValue, shortURL, originalURL).Scan(&res)
+	if res != uniqueID.String() {
+		return ErrDuplicateURL
+	}
 	if err != nil {
 		return err
-	}
-	var res string
-	err = dbObj.db.QueryRow(insertRowURLsQueryString, authCookieValue, shortURL, originalURL).Scan(&res)
-	if res != shortURL {
-		return ErrDuplicateURL
 	}
 
 	return nil
@@ -110,7 +91,7 @@ func (dbObj *Database) GetURLRow(shortURL string) (string, error) {
 
 	err := dbObj.db.QueryRow(getOriginalURLQueryString,
 		shortURL).Scan(&originalURL)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return "", err
 	}
 
@@ -120,7 +101,7 @@ func (dbObj *Database) GetURLRow(shortURL string) (string, error) {
 func (dbObj *Database) GetAllRows(authCookieValue string) (*sql.Rows, error) {
 	rows, err := dbObj.db.Query(getOriginalURLsByCookie,
 		authCookieValue)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
 
@@ -128,12 +109,6 @@ func (dbObj *Database) GetAllRows(authCookieValue string) (*sql.Rows, error) {
 }
 
 func (dbObj *Database) Batch(batchList []BatchBefore, authCookieValue string) ([]BatchAfter, error) {
-	_, err := dbObj.db.Exec(insertRowAuthQueryString, authCookieValue)
-	if err != nil {
-		//fmt.Println("Here")
-		return nil, err
-	}
-
 	tx, err := dbObj.db.Begin()
 	if err != nil {
 		return nil, err
@@ -147,7 +122,8 @@ func (dbObj *Database) Batch(batchList []BatchBefore, authCookieValue string) ([
 
 	var resList []BatchAfter
 	for i := range batchList {
-		if _, err = stmt.Exec(authCookieValue, shorten.EncodeString([]byte(batchList[i].OriginalURL)),
+		uniqueID, _ := uuid.NewV1()
+		if _, err = stmt.Exec(uniqueID.String(), authCookieValue, shorten.EncodeString([]byte(batchList[i].OriginalURL)),
 			batchList[i].OriginalURL); err != nil {
 			return nil, err
 		}

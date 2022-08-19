@@ -19,11 +19,11 @@ type DBStorage struct {
 
 func GetDBStorage() (*DBStorage, error) {
 	dbObj := db.ConnectToDB(cfg.DatabaseDSN)
-	err := dbObj.CreateAuthTable()
-	if err != nil {
-		return nil, err
-	}
-	err = dbObj.CreateURLsTable()
+	//err := dbObj.CreateAuthTable()
+	//if err != nil {
+	//	return nil, err
+	//}
+	err := dbObj.CreateURLsTable()
 	if err != nil {
 		return nil, err
 	}
