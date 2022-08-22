@@ -25,7 +25,7 @@ const (
 
 var cookieObj = &middleware.Cookier{}
 var testCookie, _ = middleware.CreateNewCookie(cookieObj)
-var testInMemStorage = storage.GetInMemoryStorage()
+var testInMemStorage = storage.GetInMemoryStorage(cfg.BaseURL)
 
 //var cfg = config.New()
 
@@ -44,7 +44,7 @@ type tests struct {
 
 func runTestsInMem(s storage.Storage, tm map[string]tests, t *testing.T) {
 	//inMemStorage := s
-	rh := NewRequestHandler(s, cfg.BaseURL, cfg.DatabaseDSN)
+	rh := NewRequestHandler(s, cfg.DatabaseDSN)
 	for test, tfields := range tm {
 		t.Run(test, func(t *testing.T) {
 			req := httptest.NewRequest(tfields.method, tfields.request, strings.NewReader(tfields.requestBody))

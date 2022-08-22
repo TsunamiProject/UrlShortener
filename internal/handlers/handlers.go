@@ -13,14 +13,12 @@ import (
 
 type RequestHandler struct {
 	storage storage.Storage
-	baseURL string
 	dbDSN   string
 }
 
-func NewRequestHandler(storage storage.Storage, baseURL string, dbDSN string) *RequestHandler {
+func NewRequestHandler(storage storage.Storage, dbDSN string) *RequestHandler {
 	return &RequestHandler{
 		storage: storage,
-		baseURL: baseURL,
 		dbDSN:   dbDSN,
 	}
 }

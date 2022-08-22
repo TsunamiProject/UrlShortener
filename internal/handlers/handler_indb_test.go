@@ -18,12 +18,12 @@ import (
 	"github.com/TsunamiProject/UrlShortener.git/internal/storage"
 )
 
-var testInDBStorage, _ = storage.GetDBStorage("postgres://shortener:pass@localhost:5432/shortener")
+var testInDBStorage, _ = storage.GetDBStorage("postgres://shortener:pass@localhost:5432/shortener", cfg.BaseURL)
 
 var cfg = config.New()
 
 func runTestsInDB(s storage.Storage, tm map[string]tests, t *testing.T) {
-	rh := NewRequestHandler(s, cfg.BaseURL, cfg.DatabaseDSN)
+	rh := NewRequestHandler(s, cfg.DatabaseDSN)
 	for test, tfields := range tm {
 		t.Run(test, func(t *testing.T) {
 			req := httptest.NewRequest(tfields.method, tfields.request, strings.NewReader(tfields.requestBody))

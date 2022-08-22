@@ -14,21 +14,19 @@ import (
 var _ Storage = &DBStorage{}
 
 type DBStorage struct {
-	db *db.Database
+	db      *db.Database
+	baseURL string
 }
 
-func GetDBStorage() (*DBStorage, error) {
-	dbObj := db.ConnectToDB(cfg.DatabaseDSN)
-	//err := dbObj.CreateAuthTable()
-	//if err != nil {
-	//	return nil, err
-	//}
+func GetDBStorage(databaseDsn string, baseURL string) (*DBStorage, error) {
+	dbObj := db.ConnectToDB(databaseDsn)
+
 	err := dbObj.CreateURLsTable()
 	if err != nil {
 		return nil, err
 	}
 
-	return &DBStorage{db: dbObj}, nil
+	return &DBStorage{db: dbObj, baseURL: baseURL}, nil
 }
 
 func (dbObj *DBStorage) Write(b []byte, authCookieValue string) (string, error) {
@@ -42,11 +40,11 @@ func (dbObj *DBStorage) Write(b []byte, authCookieValue string) (string, error) 
 
 	err := dbObj.db.InsertRow(authCookieValue, urls.ShortURL, urls.OriginalURL)
 	if errors.Is(err, db.ErrDuplicateURL) {
-		shortenURL := fmt.Sprintf("%s/%s", cfg.BaseURL, urls.ShortURL)
+		shortenURL := fmt.Sprintf("%s/%s", dbObj.baseURL, urls.ShortURL)
 		return shortenURL, err
 	}
 
-	shortenURL := fmt.Sprintf("%s/%s", cfg.BaseURL, urls.ShortURL)
+	shortenURL := fmt.Sprintf("%s/%s", dbObj.baseURL, urls.ShortURL)
 
 	return shortenURL, nil
 }
@@ -73,7 +71,7 @@ func (dbObj *DBStorage) ReadAll(authCookieValue string) (string, error) {
 			return "", err
 		}
 		urlsList = append(urlsList, JSONURL{
-			ShortURL:    fmt.Sprintf("%s/%s", cfg.BaseURL, shortURL),
+			ShortURL:    fmt.Sprintf("%s/%s", dbObj.baseURL, shortURL),
 			OriginalURL: originalURL,
 		})
 	}
@@ -115,7 +113,7 @@ func (dbObj *DBStorage) Batch(b []byte, authCookieValue string) (string, error) 
 		return "", err
 	}
 	for i := range batch {
-		batch[i].ShortURL = fmt.Sprintf("%s/%s", cfg.BaseURL, batch[i].ShortURL)
+		batch[i].ShortURL = fmt.Sprintf("%s/%s", dbObj.baseURL, batch[i].ShortURL)
 	}
 
 	resp, err := json.Marshal(batch)

@@ -30,7 +30,7 @@ func main() {
 	switch {
 	case cfg.DatabaseDSN != "":
 		log.Println("Storage is DBStorage")
-		stor, err = storage.GetDBStorage(cfg.DatabaseDSN)
+		stor, err = storage.GetDBStorage(cfg.DatabaseDSN, cfg.BaseURL)
 		if err != nil {
 			log.Fatal("failed to init dbSource: " + err.Error())
 		}
@@ -42,13 +42,13 @@ func main() {
 		}(&dbObj)
 	case cfg.FileStoragePath != "":
 		log.Println("Storage is FileStorage")
-		stor = storage.GetFileStorage(cfg.FileStoragePath)
+		stor = storage.GetFileStorage(cfg.FileStoragePath, cfg.BaseURL)
 	default:
 		log.Println("Storage is InMemoryStorage")
-		stor = storage.GetInMemoryStorage()
+		stor = storage.GetInMemoryStorage(cfg.BaseURL)
 	}
 
-	newHandler := handlers.NewRequestHandler(stor, cfg.BaseURL, cfg.DatabaseDSN)
+	newHandler := handlers.NewRequestHandler(stor, cfg.DatabaseDSN)
 	router := app.NewRouter(newHandler)
 
 	log.Printf("Server started on %s with BaseURL param: %s with file s path: %s "+"and "+

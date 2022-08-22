@@ -13,11 +13,13 @@ import (
 
 //var _ Storage = &FileStorage{}
 
-func GetFileStorage() *FileStorage {
-	return &FileStorage{}
+func GetFileStorage(filePath string, baseURL string) *FileStorage {
+	return &FileStorage{FilePath: filePath, BaseURL: baseURL}
 }
 
 type FileStorage struct {
+	FilePath string
+	BaseURL  string
 }
 
 type FileStruct struct {
@@ -60,14 +62,14 @@ func (f *FileStorage) Write(b []byte, authCookieValue string) (string, error) {
 		return "", errors.New("request body is empty")
 	}
 
-	file, err := os.OpenFile(cfg.FileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	file, err := os.OpenFile(f.FilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		return "", nil
 	}
 	toFile := &FileStruct{
 		CookieValue: authCookieValue,
 		URLs: JSONURL{
-			ShortURL:    fmt.Sprintf("%s/%s", cfg.BaseURL, shorten.EncodeString(b)),
+			ShortURL:    fmt.Sprintf("%s/%s", f.BaseURL, shorten.EncodeString(b)),
 			OriginalURL: string(b),
 		},
 	}
@@ -90,7 +92,7 @@ func (f *FileStorage) Write(b []byte, authCookieValue string) (string, error) {
 		return "", nil
 	}
 
-	shortenURL := fmt.Sprintf("%s/%s", cfg.BaseURL, shorten.EncodeString(b))
+	shortenURL := fmt.Sprintf("%s/%s", f.BaseURL, shorten.EncodeString(b))
 
 	return shortenURL, nil
 }
@@ -101,7 +103,7 @@ func (f *FileStorage) Read(shortURL string) (string, error) {
 		return "", errors.New("request body is empty")
 	}
 
-	file, err := os.OpenFile(cfg.FileStoragePath, os.O_CREATE|os.O_RDONLY, 0666)
+	file, err := os.OpenFile(f.FilePath, os.O_CREATE|os.O_RDONLY, 0666)
 	if err != nil {
 		return "", nil
 	}
@@ -114,7 +116,7 @@ func (f *FileStorage) Read(shortURL string) (string, error) {
 		if err != nil {
 			continue
 		}
-		if temp.URLs.ShortURL == fmt.Sprintf("%s/%s", cfg.BaseURL, shortURL) {
+		if temp.URLs.ShortURL == fmt.Sprintf("%s/%s", f.BaseURL, shortURL) {
 			originalURL = temp.URLs.OriginalURL
 			break
 		}
@@ -137,7 +139,7 @@ func (f *FileStorage) Read(shortURL string) (string, error) {
 }
 
 func (f *FileStorage) ReadAll(authCookieValue string) (string, error) {
-	file, err := os.OpenFile(cfg.FileStoragePath, os.O_CREATE|os.O_RDONLY, 0666)
+	file, err := os.OpenFile(f.FilePath, os.O_CREATE|os.O_RDONLY, 0666)
 	if err != nil {
 		return "", nil
 	}
