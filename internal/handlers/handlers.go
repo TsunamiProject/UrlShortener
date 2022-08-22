@@ -7,13 +7,23 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/TsunamiProject/UrlShortener.git/internal/config"
 	"github.com/TsunamiProject/UrlShortener.git/internal/db"
 	"github.com/TsunamiProject/UrlShortener.git/internal/storage"
 )
 
-var cfg = config.New()
-var currStorage storage.Storage
+type RequestHandler struct {
+	storage storage.Storage
+	baseURL string
+	dbDSN   string
+}
+
+func NewRequestHandler(storage storage.Storage, baseURL string, dbDSN string) *RequestHandler {
+	return &RequestHandler{
+		storage: storage,
+		baseURL: baseURL,
+		dbDSN:   dbDSN,
+	}
+}
 
 type EncodeStruct struct {
 	Result string `json:"result"`
@@ -27,35 +37,15 @@ type WriteTo struct {
 	CookieValue string
 }
 
-func init() {
-	if cfg.FileStoragePath != "" {
-		currStorage = storage.GetFileStorage()
-		log.Println("Storage is FileStorage")
-	} else {
-		currStorage = storage.GetInMemoryStorage()
-		log.Println("Storage is InMemoryStorage")
-	}
-
-	if cfg.DatabaseDSN != "" {
-		log.Println("Storage is DBStorage")
-		var err error
-		currStorage, err = storage.GetDBStorage()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
-}
-
 // MethodNotAllowedHandler send http error if request method not allowed
-func MethodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
+func (rh *RequestHandler) MethodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
 	//checking request method and sending error response if request method != get/post
 	http.Error(w, "Only get/post methods are allowed!", http.StatusBadRequest)
 	log.Printf("%d: %s request was recieved", http.StatusBadRequest, r.Method)
 }
 
 // ShortenerHandler send shorten url from full url which received from request body
-func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
+func (rh *RequestHandler) ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 	//calls saveUrlHandler on POST method
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -82,7 +72,7 @@ func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 
 	var statusCode int
 
-	res, err := currStorage.Write(writeToStruct.ReqBody, writeToStruct.CookieValue)
+	res, err := rh.storage.Write(writeToStruct.ReqBody, writeToStruct.CookieValue)
 	if errors.Is(err, db.ErrDuplicateURL) {
 		statusCode = http.StatusConflict
 	} else if err == nil {
@@ -104,7 +94,7 @@ func ShortenerHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // ShortenAPIHandler send shorten url with json format from full url which received from request body
-func ShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
+func (rh *RequestHandler) ShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error: %s", err)
@@ -126,14 +116,14 @@ func ShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	res, statusCode, err := urlDecoder(b, authCookie.Value)
+	res, statusCode, err := rh.urlDecoder(b, authCookie.Value)
 	if err != nil {
 		log.Printf("Error: %s", err)
 		http.Error(w, err.Error(), statusCode)
 		return
 	}
 
-	result, err := urlEncoder(res)
+	result, err := rh.urlEncoder(res)
 	if err != nil {
 		statusCode = http.StatusBadRequest
 	}
@@ -149,7 +139,7 @@ func ShortenAPIHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetURLHandler send origin url by short url in "Location" header
-func GetURLHandler(w http.ResponseWriter, r *http.Request) {
+func (rh *RequestHandler) GetURLHandler(w http.ResponseWriter, r *http.Request) {
 	//calls getFullUrlHandler on GET method
 	log.Printf("Recieved request with method: %s from: %s with ID_PARAM: %s",
 		r.Method, r.Host, r.URL.String()[1:])
@@ -157,7 +147,7 @@ func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 	//defer cancel()
 
 	reqURL := r.URL.String()
-	res, err := currStorage.Read(reqURL[1:])
+	res, err := rh.storage.Read(reqURL[1:])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		log.Printf("Error: %s", err)
@@ -175,11 +165,11 @@ func GetURLHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 //PingDBHandler send 200 status code if db is available and 500 if not responding
-func PingDBHandler(w http.ResponseWriter, r *http.Request) {
+func (rh *RequestHandler) PingDBHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Recieved request with method: %s from: %s. Ping DB",
 		r.Method, r.Host)
 
-	dbObj := db.ConnectToDB(cfg.DatabaseDSN)
+	dbObj := db.ConnectToDB(rh.dbDSN)
 	defer func(dbObj *db.Database) {
 		err := dbObj.CloseDBConn()
 		if err != nil {
@@ -187,8 +177,7 @@ func PingDBHandler(w http.ResponseWriter, r *http.Request) {
 
 		}
 	}(dbObj)
-	//ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
-	//defer cancel()
+
 	err := dbObj.Ping()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -204,7 +193,7 @@ func PingDBHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 //GetAPIUserURLHandler send json with all created urls with request cookie
-func GetAPIUserURLHandler(w http.ResponseWriter, r *http.Request) {
+func (rh *RequestHandler) GetAPIUserURLHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Recieved request with method: %s from: %s with ID_PARAM: %s",
 		r.Method, r.Host, r.URL.String()[1:])
 
@@ -214,7 +203,7 @@ func GetAPIUserURLHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	//ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
 	//defer cancel()
-	res, err := currStorage.ReadAll(authCookie.Value)
+	res, err := rh.storage.ReadAll(authCookie.Value)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNoContent)
 	} else {
@@ -228,7 +217,7 @@ func GetAPIUserURLHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func ShortenAPIBatchHandler(w http.ResponseWriter, r *http.Request) {
+func (rh *RequestHandler) ShortenAPIBatchHandler(w http.ResponseWriter, r *http.Request) {
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error: %s", err)
@@ -244,10 +233,10 @@ func ShortenAPIBatchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	authCookie, err := r.Cookie("auth")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNoContent)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	res, err := currStorage.Batch(b, authCookie.Value)
+	res, err := rh.storage.Batch(b, authCookie.Value)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	} else {
@@ -261,7 +250,7 @@ func ShortenAPIBatchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func urlDecoder(b []byte, cookieValue string) (string, int, error) {
+func (rh *RequestHandler) urlDecoder(b []byte, cookieValue string) (string, int, error) {
 	var decodeStruct DecodeStruct
 
 	var statusCode int
@@ -270,7 +259,7 @@ func urlDecoder(b []byte, cookieValue string) (string, int, error) {
 		return "", http.StatusBadRequest, errors.New("invalid request body")
 	}
 
-	res, err := currStorage.Write([]byte(decodeStruct.URL), cookieValue)
+	res, err := rh.storage.Write([]byte(decodeStruct.URL), cookieValue)
 	if errors.Is(err, db.ErrDuplicateURL) {
 		statusCode = http.StatusConflict
 		return res, statusCode, nil
@@ -285,7 +274,7 @@ func urlDecoder(b []byte, cookieValue string) (string, int, error) {
 	return res, statusCode, nil
 }
 
-func urlEncoder(r string) ([]byte, error) {
+func (rh *RequestHandler) urlEncoder(r string) ([]byte, error) {
 	encodeStruct := EncodeStruct{Result: r}
 	res, err := json.Marshal(encodeStruct)
 	if err != nil {
