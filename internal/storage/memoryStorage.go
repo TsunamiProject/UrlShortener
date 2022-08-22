@@ -12,12 +12,13 @@ import (
 
 var _ Storage = &URLsWithAuth{}
 
-func GetInMemoryStorage() *URLsWithAuth {
-	return &URLsWithAuth{}
+func GetInMemoryStorage(baseURL string) *URLsWithAuth {
+	return &URLsWithAuth{BaseURL: baseURL}
 }
 
 type URLsWithAuth struct {
 	AuthURLsStorage sync.Map
+	BaseURL         string
 }
 
 type JSONURL struct {
@@ -91,7 +92,7 @@ func (u *URLsWithAuth) Write(b []byte, authCookieValue string) (string, error) {
 	urlsMap[originalURL] = append(urlsMap[originalURL], authCookieValue)
 	u.AuthURLsStorage.Store(shortURL, urlsMap)
 
-	resp := fmt.Sprintf("%s/%s", cfg.BaseURL, shortURL)
+	resp := fmt.Sprintf("%s/%s", u.BaseURL, shortURL)
 
 	return resp, nil
 }
@@ -146,7 +147,7 @@ func (u *URLsWithAuth) ReadAll(authCookieValue string) (string, error) {
 			for authIDs := range val {
 				if val[authIDs] == authCookieValue {
 					toMarshallList = append(toMarshallList, JSONURL{
-						ShortURL:    fmt.Sprintf("%s/%v", cfg.BaseURL, short),
+						ShortURL:    fmt.Sprintf("%s/%v", u.BaseURL, short),
 						OriginalURL: origin,
 					})
 				}

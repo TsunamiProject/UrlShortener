@@ -8,25 +8,19 @@ import (
 )
 
 // NewRouter return router instance with handlers and error
-func NewRouter() chi.Router {
-	//Collecting http.Server instance
-	//server := &http.Server{
-	//	Addr:    config.IPPort.IP + ":" + config.IPPort.PORT,
-	//	Handler: http.HandlerFunc(handlers.ReqHandler),
-	//}
+func NewRouter(rh *handlers.RequestHandler) chi.Router {
 	//Collecting router
 	router := chi.NewRouter()
 	router.Use(middleware.GzipRespWriteHandler, middleware.GzipReqParseHandler)
 	router.Use(middleware.CookieHandler)
-	router.Get("/*", handlers.GetURLHandler)
-	router.Get("/api/user/urls", handlers.GetAPIUserURLHandler)
-	router.Get("/ping", handlers.PingDBHandler)
-	router.Post("/", handlers.ShortenerHandler)
-	router.Post("/api/shorten", handlers.ShortenAPIHandler)
-	router.Post("/api/shorten/batch", handlers.ShortenAPIBatchHandler)
-	router.Put("/{}", handlers.MethodNotAllowedHandler)
-	router.Patch("/{}", handlers.MethodNotAllowedHandler)
+	router.Get("/*", rh.GetURLHandler)
+	router.Get("/api/user/urls", rh.GetAPIUserURLHandler)
+	router.Get("/ping", rh.PingDBHandler)
+	router.Post("/", rh.ShortenerHandler)
+	router.Post("/api/shorten", rh.ShortenAPIHandler)
+	router.Post("/api/shorten/batch", rh.ShortenAPIBatchHandler)
+	router.Put("/{}", rh.MethodNotAllowedHandler)
+	router.Patch("/{}", rh.MethodNotAllowedHandler)
 
 	return router
-
 }
