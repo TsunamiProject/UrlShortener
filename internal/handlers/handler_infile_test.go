@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,37 +13,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/middleware"
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
 	"github.com/TsunamiProject/UrlShortener.git/internal/storage"
 )
 
-const (
-	firstTestURL  = "http://endxivm.com/y1ryfyoiudul7"
-	secondTestURL = "http://test.com/"
-	thirdTestURL  = "http://really.com/zxc"
-)
-
-var cookieObj = &middleware.Cookier{}
-var testCookie, _ = middleware.CreateNewCookie(cookieObj)
-var testInMemStorage = storage.GetInMemoryStorage()
+var testInFileStorage = storage.GetFileStorage("/tmp/test25")
 
 //var cfg = config.New()
 
-type want struct {
-	statusCode  int
-	response    string
-	contentType string
-	location    string
-}
-type tests struct {
-	request     string
-	requestBody string
-	method      string
-	want        want
-}
+func runTestsInFile(s storage.Storage, tm map[string]tests, t *testing.T) {
 
-func runTestsInMem(s storage.Storage, tm map[string]tests, t *testing.T) {
 	//inMemStorage := s
 	rh := NewRequestHandler(s, cfg.BaseURL, cfg.DatabaseDSN)
 	for test, tfields := range tm {
@@ -97,9 +77,9 @@ func runTestsInMem(s storage.Storage, tm map[string]tests, t *testing.T) {
 	}
 }
 
-func TestMethodNotAllowedHandlerInMem(t *testing.T) {
+func TestMethodNotAllowedHandlerInFile(t *testing.T) {
 	testMap := make(map[string]tests)
-	testMap["#1 In Mem: Send request with no allowed method (PUT)"] = tests{
+	testMap["#1 In File: Send request with no allowed method (PUT)"] = tests{
 		request:     "/",
 		requestBody: "",
 		method:      "PUT",
@@ -110,15 +90,15 @@ func TestMethodNotAllowedHandlerInMem(t *testing.T) {
 			location:    "",
 		},
 	}
-	runTestsInMem(testInMemStorage, testMap, t)
+	runTestsInFile(testInFileStorage, testMap, t)
 }
 
-func TestShortenerApiHandlerInMem(t *testing.T) {
+func TestShortenerApiHandlerInFile(t *testing.T) {
 	testMap := make(map[string]tests)
 	testJSON := "{\"url\":\"http://test.com/\"}"
 	testInvalidJSON := "{\"url\":\"http://endxivm.com/y1ry"
 	testResponse := "{\"result\":\"http://localhost:8080/687474703a2f2f746573742e636f6d2f\"}"
-	testMap["#1 In Mem: Make shorten URL from origin URL with json response. Request body is not empty."] = tests{
+	testMap["#1 In File: Make shorten URL from origin URL with json response. Request body is not empty."] = tests{
 		request:     "/api/shorten",
 		requestBody: testJSON,
 		method:      "POST",
@@ -129,7 +109,7 @@ func TestShortenerApiHandlerInMem(t *testing.T) {
 			location:    "",
 		},
 	}
-	testMap["#2 In Mem: Make shorten URL from origin URL with json response. Request body is invalid."] = tests{
+	testMap["#2 In File: Make shorten URL from origin URL with json response. Request body is invalid."] = tests{
 		request:     "/api/shorten",
 		requestBody: testInvalidJSON,
 		method:      "POST",
@@ -140,14 +120,14 @@ func TestShortenerApiHandlerInMem(t *testing.T) {
 			location:    "",
 		},
 	}
-	runTestsInMem(testInMemStorage, testMap, t)
+	runTestsInFile(testInFileStorage, testMap, t)
 }
 
-func TestShortenerHandlerInMem(t *testing.T) {
+func TestShortenerHandlerInFile(t *testing.T) {
 	testMap := make(map[string]tests)
 	hashStringFirstURL := shorten.EncodeString([]byte(firstTestURL))
 	hashStringThirdURL := shorten.EncodeString([]byte(thirdTestURL))
-	testMap["#1 In Mem: Make shorten URL from origin URL. Request body is not empty."] = tests{
+	testMap["#1 In File: Make shorten URL from origin URL. Request body is not empty."] = tests{
 		request:     "/",
 		requestBody: firstTestURL,
 		method:      "POST",
@@ -158,7 +138,7 @@ func TestShortenerHandlerInMem(t *testing.T) {
 			location:    "",
 		},
 	}
-	testMap["#2 In Mem: Make shorten URL from origin URL. Request body is not empty."] = tests{
+	testMap["#2 In File: Make shorten URL from origin URL. Request body is not empty."] = tests{
 		request:     "/",
 		requestBody: thirdTestURL,
 		method:      "POST",
@@ -169,7 +149,7 @@ func TestShortenerHandlerInMem(t *testing.T) {
 			location:    "",
 		},
 	}
-	testMap["#3 In Mem: Make shorten URL from origin URL. Request body is empty."] = tests{
+	testMap["#3 In File: Make shorten URL from origin URL. Request body is empty."] = tests{
 		request:     "/",
 		requestBody: "",
 		method:      "POST",
@@ -180,14 +160,14 @@ func TestShortenerHandlerInMem(t *testing.T) {
 			location:    "",
 		},
 	}
-	runTestsInMem(testInMemStorage, testMap, t)
+	runTestsInFile(testInFileStorage, testMap, t)
 }
 
-func TestGetUrlHandlerInMem(t *testing.T) {
+func TestGetUrlHandlerInFile(t *testing.T) {
 	testMap := make(map[string]tests)
 	firstHashString := shorten.EncodeString([]byte(firstTestURL))
 	secondHashString := shorten.EncodeString([]byte("noexists"))
-	testMap["#1 In Mem: Get origin URL from shorten URL. Shorten URL already exists."] = tests{
+	testMap["#1 In File: Get origin URL from shorten URL. Shorten URL already exists."] = tests{
 		request:     "/" + firstHashString,
 		requestBody: "",
 		method:      "GET",
@@ -198,7 +178,7 @@ func TestGetUrlHandlerInMem(t *testing.T) {
 			location:    firstTestURL,
 		},
 	}
-	testMap["#2 In Mem: Get origin URL from shorten URL. Shorten URL doesn't exist."] = tests{
+	testMap["#2 In File: Get origin URL from shorten URL. Shorten URL doesn't exist."] = tests{
 		request:     "/" + secondHashString,
 		requestBody: "",
 		method:      "GET",
@@ -209,10 +189,10 @@ func TestGetUrlHandlerInMem(t *testing.T) {
 			location:    "",
 		},
 	}
-	runTestsInMem(testInMemStorage, testMap, t)
+	runTestsInFile(testInFileStorage, testMap, t)
 }
 
-func TestGetUserUrlsHandlerInMem(t *testing.T) {
+func TestGetUserUrlsHandlerInFile(t *testing.T) {
 	testMap := make(map[string]tests)
 	firstHashString := shorten.EncodeString([]byte(firstTestURL))
 	secondHashString := shorten.EncodeString([]byte(secondTestURL))
@@ -229,7 +209,7 @@ func TestGetUserUrlsHandlerInMem(t *testing.T) {
 		OriginalURL: thirdTestURL,
 	})
 	marshalledResSlice, _ := json.Marshal(testResSlice)
-	testMap["#1 In Mem: Get User urls by cookie"] = tests{
+	testMap["#1 In File: Get User urls by cookie"] = tests{
 		request:     "/api/user/urls",
 		requestBody: "",
 		method:      "GET",
@@ -239,10 +219,10 @@ func TestGetUserUrlsHandlerInMem(t *testing.T) {
 			contentType: "application/json",
 		},
 	}
-	runTestsInMem(testInMemStorage, testMap, t)
+	runTestsInFile(testInFileStorage, testMap, t)
 }
 
-func TestShortenAPIBatchHandlerInMem(t *testing.T) {
+func TestShortenAPIBatchHandlerInFile(t *testing.T) {
 	testMap := make(map[string]tests)
 	var before []storage.BatchStructBefore
 	before = append(before, storage.BatchStructBefore{
@@ -250,13 +230,15 @@ func TestShortenAPIBatchHandlerInMem(t *testing.T) {
 		OriginalURL:   "http://rcteras2131kawj.net",
 	})
 	beforeMarshalled, _ := json.Marshal(before)
+	log.Println("Before marshalled", string(beforeMarshalled))
 	var after []storage.BatchStructAfter
 	after = append(after, storage.BatchStructAfter{
 		CorrelationID: "testID",
 		ShortURL:      "http://localhost:8080/687474703a2f2f72637465726173323133316b61776a2e6e6574",
 	})
 	afterMarshalled, _ := json.Marshal(after)
-	testMap["#1 In Mem: Make batch of URLs. Request body is not empty."] = tests{
+	log.Println("After marshalled:", string(afterMarshalled))
+	testMap["#1 In File: Make batch of URLs. Request body is not empty."] = tests{
 		request:     "/api/shorten/batch",
 		requestBody: string(beforeMarshalled),
 		method:      "POST",
@@ -267,5 +249,5 @@ func TestShortenAPIBatchHandlerInMem(t *testing.T) {
 			location:    "",
 		},
 	}
-	runTestsInMem(testInMemStorage, testMap, t)
+	runTestsInFile(testInFileStorage, testMap, t)
 }
