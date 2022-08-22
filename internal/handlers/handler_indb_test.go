@@ -19,11 +19,10 @@ import (
 )
 
 var cfg = config.New()
-var testInDBStorage, err = storage.GetDBStorage("postgres://shortener:pass@localhost:5432/shortener", cfg.BaseURL)
+var testInDBStorage, _ = storage.GetDBStorage("postgres://shortener:pass@localhost:5432/shortener", cfg.BaseURL)
 
 func runTestsInDB(s storage.Storage, tm map[string]tests, t *testing.T) {
-	if s == nil {
-		log.Println("DB is unavailable")
+	if testInDBStorage == nil {
 		t.Skip()
 	}
 	rh := NewRequestHandler(s, cfg.DatabaseDSN)
@@ -92,7 +91,9 @@ func TestMethodNotAllowedHandlerInDB(t *testing.T) {
 			location:    "",
 		},
 	}
-	runTestsInDB(testInDBStorage, testMap, t)
+	if testInDBStorage != nil {
+		runTestsInDB(testInDBStorage, testMap, t)
+	}
 }
 
 func TestShortenerApiHandlerInDB(t *testing.T) {
@@ -122,7 +123,9 @@ func TestShortenerApiHandlerInDB(t *testing.T) {
 			location:    "",
 		},
 	}
-	runTestsInDB(testInDBStorage, testMap, t)
+	if testInDBStorage != nil {
+		runTestsInDB(testInDBStorage, testMap, t)
+	}
 }
 
 func TestShortenerHandlerInDB(t *testing.T) {
@@ -162,7 +165,9 @@ func TestShortenerHandlerInDB(t *testing.T) {
 			location:    "",
 		},
 	}
-	runTestsInDB(testInDBStorage, testMap, t)
+	if testInDBStorage != nil {
+		runTestsInDB(testInDBStorage, testMap, t)
+	}
 }
 
 func TestGetUrlHandlerInDB(t *testing.T) {
@@ -191,7 +196,9 @@ func TestGetUrlHandlerInDB(t *testing.T) {
 			location:    "",
 		},
 	}
-	runTestsInDB(testInDBStorage, testMap, t)
+	if testInDBStorage != nil {
+		runTestsInDB(testInDBStorage, testMap, t)
+	}
 }
 
 func TestGetUserUrlsHandlerInDB(t *testing.T) {
@@ -221,7 +228,9 @@ func TestGetUserUrlsHandlerInDB(t *testing.T) {
 			contentType: "application/json",
 		},
 	}
-	runTestsInDB(testInDBStorage, testMap, t)
+	if testInDBStorage != nil {
+		runTestsInDB(testInDBStorage, testMap, t)
+	}
 }
 
 func TestShortenAPIBatchHandlerInDB(t *testing.T) {
@@ -251,5 +260,7 @@ func TestShortenAPIBatchHandlerInDB(t *testing.T) {
 			location:    "",
 		},
 	}
-	runTestsInDB(testInDBStorage, testMap, t)
+	if testInDBStorage != nil {
+		runTestsInDB(testInDBStorage, testMap, t)
+	}
 }
