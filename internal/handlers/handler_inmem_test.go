@@ -25,6 +25,7 @@ const (
 
 var cookieObj = &middleware.Cookier{}
 var testCookie, _ = middleware.CreateNewCookie(cookieObj)
+var testInMemStorage = storage.GetInMemoryStorage()
 
 //var cfg = config.New()
 
@@ -41,7 +42,9 @@ type tests struct {
 	want        want
 }
 
-func runTests(tm map[string]tests, t *testing.T) {
+func runTests(s storage.Storage, tm map[string]tests, t *testing.T) {
+	//inMemStorage := s
+	rh := NewRequestHandler(s)
 	for test, tfields := range tm {
 		t.Run(test, func(t *testing.T) {
 			req := httptest.NewRequest(tfields.method, tfields.request, strings.NewReader(tfields.requestBody))
@@ -52,23 +55,23 @@ func runTests(tm map[string]tests, t *testing.T) {
 			case tfields.method == "GET":
 				switch {
 				case tfields.request != "/api/user/urls":
-					h := http.HandlerFunc(GetURLHandler)
+					h := http.HandlerFunc(rh.GetURLHandler)
 					h.ServeHTTP(w, req)
 				case tfields.request == "/api/user/urls":
-					h := http.HandlerFunc(GetAPIUserURLHandler)
+					h := http.HandlerFunc(rh.GetAPIUserURLHandler)
 					h.ServeHTTP(w, req)
 				}
 			case tfields.method == "POST":
 				switch {
 				case tfields.request == "/":
-					h := http.HandlerFunc(ShortenerHandler)
+					h := http.HandlerFunc(rh.ShortenerHandler)
 					h.ServeHTTP(w, req)
 				case tfields.request == "/api/shorten":
-					h := http.HandlerFunc(ShortenAPIHandler)
+					h := http.HandlerFunc(rh.ShortenAPIHandler)
 					h.ServeHTTP(w, req)
 				}
 			case tfields.method == "PUT" || tfields.method == "DELETE":
-				h := http.HandlerFunc(MethodNotAllowedHandler)
+				h := http.HandlerFunc(rh.MethodNotAllowedHandler)
 				h.ServeHTTP(w, req)
 			}
 
@@ -93,7 +96,7 @@ func runTests(tm map[string]tests, t *testing.T) {
 
 func TestMethodNotAllowedHandler(t *testing.T) {
 	testMap := make(map[string]tests)
-	testMap["Send request with no allowed method (PUT)"] = tests{
+	testMap["#1 In Mem: Send request with no allowed method (PUT)"] = tests{
 		request:     "/",
 		requestBody: "",
 		method:      "PUT",
@@ -104,7 +107,7 @@ func TestMethodNotAllowedHandler(t *testing.T) {
 			location:    "",
 		},
 	}
-	runTests(testMap, t)
+	runTests(testInMemStorage, testMap, t)
 }
 
 func TestShortenerApiHandler(t *testing.T) {
@@ -112,7 +115,7 @@ func TestShortenerApiHandler(t *testing.T) {
 	testJSON := "{\"url\":\"http://test.com/\"}"
 	testInvalidJSON := "{\"url\":\"http://endxivm.com/y1ry"
 	testResponse := "{\"result\":\"http://localhost:8080/687474703a2f2f746573742e636f6d2f\"}"
-	testMap["#1 Make shorten URL from origin URL with json response. Request body is not empty."] = tests{
+	testMap["#1 In Mem: Make shorten URL from origin URL with json response. Request body is not empty."] = tests{
 		request:     "/api/shorten",
 		requestBody: testJSON,
 		method:      "POST",
@@ -123,7 +126,7 @@ func TestShortenerApiHandler(t *testing.T) {
 			location:    "",
 		},
 	}
-	testMap["#2 Make shorten URL from origin URL with json response. Request body is invalid."] = tests{
+	testMap["#2 In Mem: Make shorten URL from origin URL with json response. Request body is invalid."] = tests{
 		request:     "/api/shorten",
 		requestBody: testInvalidJSON,
 		method:      "POST",
@@ -134,14 +137,14 @@ func TestShortenerApiHandler(t *testing.T) {
 			location:    "",
 		},
 	}
-	runTests(testMap, t)
+	runTests(testInMemStorage, testMap, t)
 }
 
 func TestShortenerHandler(t *testing.T) {
 	testMap := make(map[string]tests)
 	hashStringFirstURL := shorten.EncodeString([]byte(firstTestURL))
 	hashStringThirdURL := shorten.EncodeString([]byte(thirdTestURL))
-	testMap["#1 Make shorten URL from origin URL. Request body is not empty."] = tests{
+	testMap["#1 In Mem: Make shorten URL from origin URL. Request body is not empty."] = tests{
 		request:     "/",
 		requestBody: firstTestURL,
 		method:      "POST",
@@ -152,7 +155,7 @@ func TestShortenerHandler(t *testing.T) {
 			location:    "",
 		},
 	}
-	testMap["#2 Make shorten URL from origin URL. Request body is not empty."] = tests{
+	testMap["#2 In Mem: Make shorten URL from origin URL. Request body is not empty."] = tests{
 		request:     "/",
 		requestBody: thirdTestURL,
 		method:      "POST",
@@ -163,7 +166,7 @@ func TestShortenerHandler(t *testing.T) {
 			location:    "",
 		},
 	}
-	testMap["#3 Make shorten URL from origin URL. Request body is empty."] = tests{
+	testMap["#3 In Mem: Make shorten URL from origin URL. Request body is empty."] = tests{
 		request:     "/",
 		requestBody: "",
 		method:      "POST",
@@ -174,14 +177,14 @@ func TestShortenerHandler(t *testing.T) {
 			location:    "",
 		},
 	}
-	runTests(testMap, t)
+	runTests(testInMemStorage, testMap, t)
 }
 
 func TestGetUrlHandler(t *testing.T) {
 	testMap := make(map[string]tests)
 	firstHashString := shorten.EncodeString([]byte(firstTestURL))
 	secondHashString := shorten.EncodeString([]byte("noexists"))
-	testMap["#1 Get origin URL from shorten URL. Shorten URL already exists."] = tests{
+	testMap["#1 In Mem: Get origin URL from shorten URL. Shorten URL already exists."] = tests{
 		request:     "/" + firstHashString,
 		requestBody: "",
 		method:      "GET",
@@ -192,7 +195,7 @@ func TestGetUrlHandler(t *testing.T) {
 			location:    firstTestURL,
 		},
 	}
-	testMap["#2 Get origin URL from shorten URL. Shorten URL doesn't exist."] = tests{
+	testMap["#2 In Mem: Get origin URL from shorten URL. Shorten URL doesn't exist."] = tests{
 		request:     "/" + secondHashString,
 		requestBody: "",
 		method:      "GET",
@@ -203,7 +206,7 @@ func TestGetUrlHandler(t *testing.T) {
 			location:    "",
 		},
 	}
-	runTests(testMap, t)
+	runTests(testInMemStorage, testMap, t)
 }
 
 func TestGetUserUrlsHandler(t *testing.T) {
@@ -223,7 +226,7 @@ func TestGetUserUrlsHandler(t *testing.T) {
 		OriginalURL: thirdTestURL,
 	})
 	marshalledResSlice, _ := json.Marshal(testResSlice)
-	testMap["#1 Get User urls by cookie"] = tests{
+	testMap["#1 In Mem: Get User urls by cookie"] = tests{
 		request:     "/api/user/urls",
 		requestBody: "",
 		method:      "GET",
@@ -233,31 +236,20 @@ func TestGetUserUrlsHandler(t *testing.T) {
 			contentType: "application/json",
 		},
 	}
-	runTests(testMap, t)
+	runTests(testInMemStorage, testMap, t)
 }
 
 func TestShortenAPIBatchHandler(t *testing.T) {
 	testMap := make(map[string]tests)
 	hashStringFirstURL := shorten.EncodeString([]byte(firstTestURL))
-	hashStringThirdURL := shorten.EncodeString([]byte(thirdTestURL))
-	testMap["#1 Make shorten URL from origin URL. Request body is not empty."] = tests{
-		request:     "/",
+	//hashStringThirdURL := shorten.EncodeString([]byte(thirdTestURL))
+	testMap["#1 In Mem: Make batch of URLs. Request body is not empty."] = tests{
+		request:     "/api/shorten/batch",
 		requestBody: firstTestURL,
 		method:      "POST",
 		want: want{
 			statusCode:  201,
 			response:    fmt.Sprintf("%s/%s", cfg.BaseURL, hashStringFirstURL),
-			contentType: "application/json",
-			location:    "",
-		},
-	}
-	testMap["#2 Make shorten URL from origin URL. Request body is not empty."] = tests{
-		request:     "/",
-		requestBody: thirdTestURL,
-		method:      "POST",
-		want: want{
-			statusCode:  201,
-			response:    fmt.Sprintf("%s/%s", cfg.BaseURL, hashStringThirdURL),
 			contentType: "application/json",
 			location:    "",
 		},
