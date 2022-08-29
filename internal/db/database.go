@@ -133,7 +133,7 @@ func (dbObj *Database) Batch(batchList []BatchBefore, authCookieValue string) ([
 	var resList []BatchAfter
 	for i := range batchList {
 		uniqueID, _ := uuid.NewV1()
-		if _, err = stmt.Exec(uniqueID.String(), authCookieValue, shorten.EncodeString([]byte(batchList[i].OriginalURL)),
+		if _, err = stmt.Exec(uniqueID.String(), false, authCookieValue, shorten.EncodeString([]byte(batchList[i].OriginalURL)),
 			batchList[i].OriginalURL); err != nil {
 			return nil, err
 		}
