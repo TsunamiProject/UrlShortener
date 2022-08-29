@@ -177,3 +177,7 @@ func (f *FileStorage) ReadAll(authCookieValue string) (string, error) {
 
 	return string(resp), nil
 }
+
+func (f *FileStorage) Delete(authCookieValue string, deleteList []string) error {
+	return nil
+}

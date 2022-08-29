@@ -146,7 +146,12 @@ func (rh *RequestHandler) GetURLHandler(w http.ResponseWriter, r *http.Request) 
 
 	reqURL := r.URL.String()
 	res, err := rh.storage.Read(reqURL[1:])
-	if err != nil {
+
+	if errors.Is(err, db.ErrDeletedURL) {
+		http.Error(w, err.Error(), http.StatusGone)
+		log.Printf("Error: %s", err)
+		return
+	} else if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		log.Printf("Error: %s", err)
 		return
@@ -246,6 +251,46 @@ func (rh *RequestHandler) ShortenAPIBatchHandler(w http.ResponseWriter, r *http.
 			return
 		}
 	}
+}
+
+func (rh *RequestHandler) DeleteURLHandler(w http.ResponseWriter, r *http.Request) {
+	b, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	log.Printf("Recieved request with method: %s from: %s with r.body: %s",
+		r.Method, r.Host, string(b))
+	err = r.Body.Close()
+	if err != nil {
+		log.Printf("Error: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	authCookie, err := r.Cookie("auth")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	deleteList := make([]string, 0)
+	err = json.Unmarshal(b, &deleteList)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	log.Println("del list:", deleteList)
+	err = rh.storage.Delete(authCookie.Value, deleteList)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	} else {
+		w.Header().Set("content-type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, err = w.Write([]byte(""))
+		if err != nil {
+			log.Printf("Error: %s", err)
+			return
+		}
+	}
+
 }
 
 func (rh *RequestHandler) urlDecoder(b []byte, cookieValue string) (string, int, error) {

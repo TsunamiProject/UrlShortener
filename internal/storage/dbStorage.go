@@ -51,8 +51,10 @@ func (dbObj *DBStorage) Write(b []byte, authCookieValue string) (string, error) 
 
 func (dbObj *DBStorage) Read(shortURL string) (string, error) {
 	row, err := dbObj.db.GetURLRow(shortURL)
-	if err != nil || row == "" {
-		return "", fmt.Errorf("there are no URLs with ID: %s", shortURL)
+	if errors.Is(err, db.ErrDeletedURL) {
+		return "", err
+	} else if err != nil || row == "" {
+		return "", err
 	}
 
 	return row, nil
@@ -122,4 +124,17 @@ func (dbObj *DBStorage) Batch(b []byte, authCookieValue string) (string, error) 
 	}
 
 	return string(resp), nil
+}
+
+func (dbObj *DBStorage) Delete(authCookieValue string, deleteList []string) error {
+	if len(deleteList) == 0 {
+		return errors.New("urls list to delete is empty")
+	}
+
+	err := dbObj.db.DeleteRows(authCookieValue, deleteList)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

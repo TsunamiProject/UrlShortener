@@ -28,14 +28,17 @@ type BatchAfter struct {
 const (
 	urlsTableQueryString = `CREATE TABLE IF NOT EXISTS NOAUTHURLS (
     						ID varchar(255),
+    						TODELETE BOOLEAN,
                          	AUTHID varchar(255),
                          	SHORTURL VARCHAR(255),
                          	ORIGINALURL varchar(255) UNIQUE
                            )`
-	insertRowURLsQueryString = `INSERT INTO noauthurls(id, authid, shorturl, originalurl) VALUES ($1,$2,$3,$4) 
+	insertRowURLsQueryString = `INSERT INTO noauthurls(id, todelete, authid, shorturl, originalurl) 
+									  VALUES ($1,$2,$3,$4,$5) 
 									  ON CONFLICT (originalurl)
-									  DO UPDATE SET authid=$2 RETURNING id`
-	getOriginalURLQueryString = `SELECT ORIGINALURL FROM noauthurls WHERE SHORTURL=$1 LIMIT 1`
+									  DO UPDATE SET authid=$3 RETURNING id`
+	deleteRowByUser           = `UPDATE noauthurls set todelete=$1 where authid=$2 and shorturl=$3 returning todelete`
+	getOriginalURLQueryString = `SELECT ORIGINALURL,TODELETE FROM noauthurls WHERE SHORTURL=$1 LIMIT 1`
 	getOriginalURLsByCookie   = `SELECT SHORTURL,ORIGINALURL FROM noauthurls WHERE AUTHID=$1`
 )
 
@@ -75,7 +78,8 @@ func (dbObj *Database) CreateURLsTable() error {
 func (dbObj *Database) InsertRow(authCookieValue string, shortURL string, originalURL string) error {
 	var res string
 	uniqueID, _ := uuid.NewV1()
-	err := dbObj.db.QueryRow(insertRowURLsQueryString, uniqueID.String(), authCookieValue, shortURL, originalURL).Scan(&res)
+	err := dbObj.db.QueryRow(insertRowURLsQueryString, uniqueID.String(), false, authCookieValue,
+		shortURL, originalURL).Scan(&res)
 	if res != uniqueID.String() {
 		return ErrDuplicateURL
 	}
@@ -88,11 +92,17 @@ func (dbObj *Database) InsertRow(authCookieValue string, shortURL string, origin
 
 func (dbObj *Database) GetURLRow(shortURL string) (string, error) {
 	var originalURL string
+	var toDelete bool
 
 	err := dbObj.db.QueryRow(getOriginalURLQueryString,
-		shortURL).Scan(&originalURL)
+		shortURL).Scan(&originalURL, &toDelete)
 	if errors.Is(err, sql.ErrNoRows) {
+		log.Println(originalURL)
+		log.Println(toDelete)
 		return "", err
+	}
+	if toDelete == true {
+		return "", ErrDeletedURL
 	}
 
 	return originalURL, nil
@@ -134,9 +144,37 @@ func (dbObj *Database) Batch(batchList []BatchBefore, authCookieValue string) ([
 	}
 
 	if err := tx.Commit(); err != nil {
-		log.Fatalf("update drivers: unable to commit: %v", err)
+		log.Printf("update drivers: unable to commit: %v\n", err)
 		return nil, err
 	}
 
 	return resList, nil
+}
+
+func (dbObj *Database) DeleteRows(authCookieValue string, shortURLS []string) error {
+	tx, err := dbObj.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	stmt, err := tx.Prepare(deleteRowByUser)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	for shortURL := range shortURLS {
+		log.Println("URL:", shortURLS[shortURL])
+		_, err = stmt.Exec(true, authCookieValue, shortURLS[shortURL])
+		if err != nil {
+			log.Println("ERR is:", err)
+			return err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		log.Printf("update drivers: unable to commit: %v\n", err)
+		return err
+	}
+
+	return nil
 }

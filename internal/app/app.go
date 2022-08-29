@@ -21,6 +21,7 @@ func NewRouter(rh *handlers.RequestHandler) chi.Router {
 	router.Post("/api/shorten/batch", rh.ShortenAPIBatchHandler)
 	router.Put("/{}", rh.MethodNotAllowedHandler)
 	router.Patch("/{}", rh.MethodNotAllowedHandler)
+	router.Delete("/api/user/urls", rh.DeleteURLHandler)
 
 	return router
 }

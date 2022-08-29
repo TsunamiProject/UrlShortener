@@ -6,4 +6,5 @@ func (e Error) Error() string { return string(e) }
 
 const (
 	ErrDuplicateURL Error = "URL is already exist"
+	ErrDeletedURL   Error = "URL is deleted"
 )

@@ -167,3 +167,7 @@ func (u *URLsWithAuth) ReadAll(authCookieValue string) (string, error) {
 
 	return string(resp), nil
 }
+
+func (u *URLsWithAuth) Delete(authCookieValue string, deleteList []string) error {
+	return nil
+}
