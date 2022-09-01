@@ -82,9 +82,9 @@ func (f *FileStorage) Write(b []byte, authCookieValue string) (string, error) {
 	if err != nil {
 		err = file.Close()
 		if err != nil {
-			return "", nil
+			return "", err
 		}
-		return "", nil
+		return "", err
 	}
 
 	err = file.Close()
