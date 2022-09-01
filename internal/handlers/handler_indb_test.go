@@ -18,10 +18,12 @@ import (
 	"github.com/TsunamiProject/UrlShortener.git/internal/storage"
 )
 
-var cfg = config.New()
-var testInDBStorage, _ = storage.GetDBStorage("postgres://shortener:pass@localhost:5432/shortener", cfg.BaseURL)
+var testInDBStorage, _ = storage.GetDBStorage("postgres://shortener:pass@localhost:5432/shortener",
+	"http://localhost:8080")
 
 func runTestsInDB(s storage.Storage, tm map[string]tests, t *testing.T) {
+	cfg := config.New()
+
 	if testInDBStorage == nil {
 		t.Skip()
 	}
@@ -54,7 +56,10 @@ func runTestsInDB(s storage.Storage, tm map[string]tests, t *testing.T) {
 					h := http.HandlerFunc(rh.ShortenAPIBatchHandler)
 					h.ServeHTTP(w, req)
 				}
-			case tfields.method == "PUT" || tfields.method == "DELETE":
+			case tfields.method == "DELETE":
+				h := http.HandlerFunc(rh.DeleteURLHandler)
+				h.ServeHTTP(w, req)
+			case tfields.method == "PUT":
 				h := http.HandlerFunc(rh.MethodNotAllowedHandler)
 				h.ServeHTTP(w, req)
 			}
@@ -70,6 +75,7 @@ func runTestsInDB(s storage.Storage, tm map[string]tests, t *testing.T) {
 			err = res.Body.Close()
 			require.NoError(t, err)
 			if tfields.request == "/api/user/urls" {
+				log.Println(string(respBody))
 				assert.Equal(t, len(tfields.want.response), len(string(respBody)))
 			} else {
 				assert.Equal(t, tfields.want.response, string(respBody))
@@ -129,6 +135,7 @@ func TestShortenerApiHandlerInDB(t *testing.T) {
 }
 
 func TestShortenerHandlerInDB(t *testing.T) {
+	cfg := config.New()
 	testMap := make(map[string]tests)
 	hashStringFirstURL := shorten.EncodeString([]byte(firstTestURL))
 	hashStringThirdURL := shorten.EncodeString([]byte(thirdTestURL))
@@ -202,6 +209,7 @@ func TestGetUrlHandlerInDB(t *testing.T) {
 }
 
 func TestGetUserUrlsHandlerInDB(t *testing.T) {
+	cfg := config.New()
 	testMap := make(map[string]tests)
 	firstHashString := shorten.EncodeString([]byte(firstTestURL))
 	secondHashString := shorten.EncodeString([]byte(secondTestURL))
@@ -257,6 +265,46 @@ func TestShortenAPIBatchHandlerInDB(t *testing.T) {
 			statusCode:  201,
 			response:    string(afterMarshalled),
 			contentType: "application/json",
+			location:    "",
+		},
+	}
+	if testInDBStorage != nil {
+		runTestsInDB(testInDBStorage, testMap, t)
+	}
+}
+
+func TestDeleteHandlerInDB(t *testing.T) {
+	testMap := make(map[string]tests)
+	firstHashString := shorten.EncodeString([]byte(firstTestURL))
+	deleteList := make([]string, 0)
+	deleteList = append(deleteList, firstHashString)
+	testMap["#1 In DB: Delete url by User."] = tests{
+		request:     "/api/user/urls",
+		requestBody: fmt.Sprintf(`["%s"]`, deleteList[0]),
+		method:      "DELETE",
+		want: want{
+			statusCode:  202,
+			response:    "",
+			contentType: "application/json",
+			location:    "",
+		},
+	}
+	if testInDBStorage != nil {
+		runTestsInDB(testInDBStorage, testMap, t)
+	}
+}
+
+func TestGetDeletedURL(t *testing.T) {
+	testMap := make(map[string]tests)
+	firstHashString := shorten.EncodeString([]byte(firstTestURL))
+	testMap["#2 In DB: Get deleted url by User."] = tests{
+		request:     fmt.Sprintf("/%s", firstHashString),
+		requestBody: "",
+		method:      "GET",
+		want: want{
+			statusCode:  410,
+			response:    "URL is deleted\n",
+			contentType: "text/plain; charset=utf-8",
 			location:    "",
 		},
 	}
