@@ -101,7 +101,7 @@ func (dbObj *Database) GetURLRow(shortURL string) (string, error) {
 		log.Println(toDelete)
 		return "", err
 	}
-	if toDelete == true {
+	if toDelete {
 		return "", ErrDeletedURL
 	}
 
@@ -171,7 +171,7 @@ func (dbObj *Database) DeleteRows(authCookieValue string, shortURLS []string) er
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err = tx.Commit(); err != nil {
 		log.Printf("update drivers: unable to commit: %v\n", err)
 		return err
 	}
