@@ -54,7 +54,7 @@ func (dbObj *DBStorage) Read(shortURL string) (string, error) {
 	if errors.Is(err, db.ErrDeletedURL) {
 		return "", err
 	} else if err != nil || row == "" {
-		return "", err
+		return "", fmt.Errorf("there are no URLs with ID: %s", shortURL)
 	}
 
 	return row, nil
