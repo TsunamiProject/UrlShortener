@@ -141,8 +141,6 @@ func (rh *RequestHandler) GetURLHandler(w http.ResponseWriter, r *http.Request) 
 	//calls getFullUrlHandler on GET method
 	log.Printf("Recieved request with method: %s from: %s with ID_PARAM: %s",
 		r.Method, r.Host, r.URL.String()[1:])
-	//ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
-	//defer cancel()
 
 	reqURL := r.URL.String()
 	res, err := rh.storage.Read(reqURL[1:])
@@ -204,8 +202,7 @@ func (rh *RequestHandler) GetAPIUserURLHandler(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNoContent)
 	}
-	//ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
-	//defer cancel()
+
 	res, err := rh.storage.ReadAll(authCookie.Value)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNoContent)
