@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TsunamiProject/UrlShortener.git/internal/config"
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/middleware"
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
 	"github.com/TsunamiProject/UrlShortener.git/internal/storage"
@@ -25,9 +26,7 @@ const (
 
 var cookieObj = &middleware.Cookier{}
 var testCookie, _ = middleware.CreateNewCookie(cookieObj)
-var testInMemStorage = storage.GetInMemoryStorage(cfg.BaseURL)
-
-//var cfg = config.New()
+var testInMemStorage = storage.GetInMemoryStorage("http://localhost:8080")
 
 type want struct {
 	statusCode  int
@@ -43,7 +42,7 @@ type tests struct {
 }
 
 func runTestsInMem(s storage.Storage, tm map[string]tests, t *testing.T) {
-	//inMemStorage := s
+	cfg := config.New()
 	rh := NewRequestHandler(s, cfg.DatabaseDSN)
 	for test, tfields := range tm {
 		t.Run(test, func(t *testing.T) {
@@ -144,6 +143,7 @@ func TestShortenerApiHandlerInMem(t *testing.T) {
 }
 
 func TestShortenerHandlerInMem(t *testing.T) {
+	cfg := config.New()
 	testMap := make(map[string]tests)
 	hashStringFirstURL := shorten.EncodeString([]byte(firstTestURL))
 	hashStringThirdURL := shorten.EncodeString([]byte(thirdTestURL))
@@ -213,6 +213,7 @@ func TestGetUrlHandlerInMem(t *testing.T) {
 }
 
 func TestGetUserUrlsHandlerInMem(t *testing.T) {
+	cfg := config.New()
 	testMap := make(map[string]tests)
 	firstHashString := shorten.EncodeString([]byte(firstTestURL))
 	secondHashString := shorten.EncodeString([]byte(secondTestURL))

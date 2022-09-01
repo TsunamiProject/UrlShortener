@@ -13,16 +13,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/TsunamiProject/UrlShortener.git/internal/config"
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
 	"github.com/TsunamiProject/UrlShortener.git/internal/storage"
 )
 
-var testInFileStorage = storage.GetFileStorage("/tmp/test25", cfg.BaseURL)
-
-//var cfg = config.New()
+var testInFileStorage = storage.GetFileStorage("/tmp/test25", "http://localhost:8080")
 
 func runTestsInFile(s storage.Storage, tm map[string]tests, t *testing.T) {
-
+	cfg := config.New()
 	//inMemStorage := s
 	rh := NewRequestHandler(s, cfg.DatabaseDSN)
 	for test, tfields := range tm {
@@ -124,6 +123,7 @@ func TestShortenerApiHandlerInFile(t *testing.T) {
 }
 
 func TestShortenerHandlerInFile(t *testing.T) {
+	cfg := config.New()
 	testMap := make(map[string]tests)
 	hashStringFirstURL := shorten.EncodeString([]byte(firstTestURL))
 	hashStringThirdURL := shorten.EncodeString([]byte(thirdTestURL))
@@ -193,6 +193,7 @@ func TestGetUrlHandlerInFile(t *testing.T) {
 }
 
 func TestGetUserUrlsHandlerInFile(t *testing.T) {
+	cfg := config.New()
 	testMap := make(map[string]tests)
 	firstHashString := shorten.EncodeString([]byte(firstTestURL))
 	secondHashString := shorten.EncodeString([]byte(secondTestURL))
