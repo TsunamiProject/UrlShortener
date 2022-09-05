@@ -13,13 +13,13 @@ import (
 
 type RequestHandler struct {
 	storage storage.Storage
-	dbDSN   string
+	dbObj   *db.Database
 }
 
-func NewRequestHandler(storage storage.Storage, dbDSN string) *RequestHandler {
+func NewRequestHandler(storage storage.Storage, dbObj *db.Database) *RequestHandler {
 	return &RequestHandler{
 		storage: storage,
-		dbDSN:   dbDSN,
+		dbObj:   dbObj,
 	}
 }
 
@@ -170,16 +170,7 @@ func (rh *RequestHandler) PingDBHandler(w http.ResponseWriter, r *http.Request) 
 	log.Printf("Recieved request with method: %s from: %s. Ping DB",
 		r.Method, r.Host)
 
-	dbObj := db.ConnectToDB(rh.dbDSN)
-	defer func(dbObj *db.Database) {
-		err := dbObj.CloseDBConn()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-
-		}
-	}(dbObj)
-
-	err := dbObj.Ping()
+	err := rh.dbObj.Ping()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
