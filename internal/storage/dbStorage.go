@@ -18,9 +18,7 @@ type DBStorage struct {
 	baseURL string
 }
 
-func GetDBStorage(databaseDsn string, baseURL string) (*DBStorage, error) {
-	dbObj := db.ConnectToDB(databaseDsn)
-
+func GetDBStorage(baseURL string, dbObj *db.Database) (*DBStorage, error) {
 	err := dbObj.CreateURLsTable()
 	if err != nil {
 		return nil, err
