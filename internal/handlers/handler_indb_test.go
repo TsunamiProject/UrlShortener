@@ -14,20 +14,16 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/TsunamiProject/UrlShortener.git/internal/config"
+	"github.com/TsunamiProject/UrlShortener.git/internal/db"
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
 	"github.com/TsunamiProject/UrlShortener.git/internal/storage"
 )
 
-var testInDBStorage, _ = storage.GetDBStorage("postgres://shortener:pass@localhost:5432/shortener",
-	"http://localhost:8080")
-
-func runTestsInDB(s storage.Storage, tm map[string]tests, t *testing.T) {
-	cfg := config.New()
-
-	if testInDBStorage == nil {
+func runTestsInDB(s storage.Storage, db *db.Database, tm map[string]tests, t *testing.T) {
+	if s == nil {
 		t.Skip()
 	}
-	rh := NewRequestHandler(s, cfg.DatabaseDSN)
+	rh := NewRequestHandler(s, db)
 	for test, tfields := range tm {
 		t.Run(test, func(t *testing.T) {
 			req := httptest.NewRequest(tfields.method, tfields.request, strings.NewReader(tfields.requestBody))
@@ -85,6 +81,9 @@ func runTestsInDB(s storage.Storage, tm map[string]tests, t *testing.T) {
 }
 
 func TestMethodNotAllowedHandlerInDB(t *testing.T) {
+	dbConn, _ := db.ConnectToDB("postgres://shortener:pass@localhost:5432/shortener")
+	testInDBStorage, _ := storage.GetDBStorage("http://localhost:8080", dbConn)
+	defer dbConn.CloseDBConn()
 	testMap := make(map[string]tests)
 	testMap["#1 In DB: Send request with no allowed method (PUT)"] = tests{
 		request:     "/",
@@ -98,11 +97,14 @@ func TestMethodNotAllowedHandlerInDB(t *testing.T) {
 		},
 	}
 	if testInDBStorage != nil {
-		runTestsInDB(testInDBStorage, testMap, t)
+		runTestsInDB(testInDBStorage, dbConn, testMap, t)
 	}
 }
 
 func TestShortenerApiHandlerInDB(t *testing.T) {
+	dbConn, _ := db.ConnectToDB("postgres://shortener:pass@localhost:5432/shortener")
+	testInDBStorage, _ := storage.GetDBStorage("http://localhost:8080", dbConn)
+	defer dbConn.CloseDBConn()
 	testMap := make(map[string]tests)
 	testJSON := "{\"url\":\"http://test.com/\"}"
 	testInvalidJSON := "{\"url\":\"http://endxivm.com/y1ry"
@@ -130,11 +132,14 @@ func TestShortenerApiHandlerInDB(t *testing.T) {
 		},
 	}
 	if testInDBStorage != nil {
-		runTestsInDB(testInDBStorage, testMap, t)
+		runTestsInDB(testInDBStorage, dbConn, testMap, t)
 	}
 }
 
 func TestShortenerHandlerInDB(t *testing.T) {
+	dbConn, _ := db.ConnectToDB("postgres://shortener:pass@localhost:5432/shortener")
+	testInDBStorage, _ := storage.GetDBStorage("http://localhost:8080", dbConn)
+	defer dbConn.CloseDBConn()
 	cfg := config.New()
 	testMap := make(map[string]tests)
 	hashStringFirstURL := shorten.EncodeString([]byte(firstTestURL))
@@ -173,11 +178,14 @@ func TestShortenerHandlerInDB(t *testing.T) {
 		},
 	}
 	if testInDBStorage != nil {
-		runTestsInDB(testInDBStorage, testMap, t)
+		runTestsInDB(testInDBStorage, dbConn, testMap, t)
 	}
 }
 
 func TestGetUrlHandlerInDB(t *testing.T) {
+	dbConn, _ := db.ConnectToDB("postgres://shortener:pass@localhost:5432/shortener")
+	testInDBStorage, _ := storage.GetDBStorage("http://localhost:8080", dbConn)
+	defer dbConn.CloseDBConn()
 	testMap := make(map[string]tests)
 	firstHashString := shorten.EncodeString([]byte(firstTestURL))
 	secondHashString := shorten.EncodeString([]byte("noexists"))
@@ -204,11 +212,14 @@ func TestGetUrlHandlerInDB(t *testing.T) {
 		},
 	}
 	if testInDBStorage != nil {
-		runTestsInDB(testInDBStorage, testMap, t)
+		runTestsInDB(testInDBStorage, dbConn, testMap, t)
 	}
 }
 
 func TestGetUserUrlsHandlerInDB(t *testing.T) {
+	dbConn, _ := db.ConnectToDB("postgres://shortener:pass@localhost:5432/shortener")
+	testInDBStorage, _ := storage.GetDBStorage("http://localhost:8080", dbConn)
+	defer dbConn.CloseDBConn()
 	cfg := config.New()
 	testMap := make(map[string]tests)
 	firstHashString := shorten.EncodeString([]byte(firstTestURL))
@@ -237,11 +248,14 @@ func TestGetUserUrlsHandlerInDB(t *testing.T) {
 		},
 	}
 	if testInDBStorage != nil {
-		runTestsInDB(testInDBStorage, testMap, t)
+		runTestsInDB(testInDBStorage, dbConn, testMap, t)
 	}
 }
 
 func TestShortenAPIBatchHandlerInDB(t *testing.T) {
+	dbConn, _ := db.ConnectToDB("postgres://shortener:pass@localhost:5432/shortener")
+	testInDBStorage, _ := storage.GetDBStorage("http://localhost:8080", dbConn)
+	defer dbConn.CloseDBConn()
 	testMap := make(map[string]tests)
 	var before []storage.BatchStructBefore
 	before = append(before, storage.BatchStructBefore{
@@ -269,11 +283,14 @@ func TestShortenAPIBatchHandlerInDB(t *testing.T) {
 		},
 	}
 	if testInDBStorage != nil {
-		runTestsInDB(testInDBStorage, testMap, t)
+		runTestsInDB(testInDBStorage, dbConn, testMap, t)
 	}
 }
 
 func TestDeleteHandlerInDB(t *testing.T) {
+	dbConn, _ := db.ConnectToDB("postgres://shortener:pass@localhost:5432/shortener")
+	testInDBStorage, _ := storage.GetDBStorage("http://localhost:8080", dbConn)
+	defer dbConn.CloseDBConn()
 	testMap := make(map[string]tests)
 	firstHashString := shorten.EncodeString([]byte(firstTestURL))
 	deleteList := make([]string, 0)
@@ -290,11 +307,14 @@ func TestDeleteHandlerInDB(t *testing.T) {
 		},
 	}
 	if testInDBStorage != nil {
-		runTestsInDB(testInDBStorage, testMap, t)
+		runTestsInDB(testInDBStorage, dbConn, testMap, t)
 	}
 }
 
 func TestGetDeletedURL(t *testing.T) {
+	dbConn, _ := db.ConnectToDB("postgres://shortener:pass@localhost:5432/shortener")
+	testInDBStorage, _ := storage.GetDBStorage("http://localhost:8080", dbConn)
+	defer dbConn.CloseDBConn()
 	testMap := make(map[string]tests)
 	firstHashString := shorten.EncodeString([]byte(firstTestURL))
 	testMap["#2 In DB: Get deleted url by User."] = tests{
@@ -309,6 +329,6 @@ func TestGetDeletedURL(t *testing.T) {
 		},
 	}
 	if testInDBStorage != nil {
-		runTestsInDB(testInDBStorage, testMap, t)
+		runTestsInDB(testInDBStorage, dbConn, testMap, t)
 	}
 }

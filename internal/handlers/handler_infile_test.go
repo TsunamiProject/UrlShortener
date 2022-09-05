@@ -14,16 +14,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/TsunamiProject/UrlShortener.git/internal/config"
+	"github.com/TsunamiProject/UrlShortener.git/internal/db"
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
 	"github.com/TsunamiProject/UrlShortener.git/internal/storage"
 )
 
-var testInFileStorage = storage.GetFileStorage("/tmp/test25", "http://localhost:8080")
-
 func runTestsInFile(s storage.Storage, tm map[string]tests, t *testing.T) {
-	cfg := config.New()
-	//inMemStorage := s
-	rh := NewRequestHandler(s, cfg.DatabaseDSN)
+	rh := NewRequestHandler(s, &db.Database{})
 	for test, tfields := range tm {
 		t.Run(test, func(t *testing.T) {
 			req := httptest.NewRequest(tfields.method, tfields.request, strings.NewReader(tfields.requestBody))
@@ -77,6 +74,7 @@ func runTestsInFile(s storage.Storage, tm map[string]tests, t *testing.T) {
 }
 
 func TestMethodNotAllowedHandlerInFile(t *testing.T) {
+	testInFileStorage := storage.GetFileStorage("/tmp/test25", "http://localhost:8080")
 	testMap := make(map[string]tests)
 	testMap["#1 In File: Send request with no allowed method (PUT)"] = tests{
 		request:     "/",
@@ -93,6 +91,7 @@ func TestMethodNotAllowedHandlerInFile(t *testing.T) {
 }
 
 func TestShortenerApiHandlerInFile(t *testing.T) {
+	testInFileStorage := storage.GetFileStorage("/tmp/test25", "http://localhost:8080")
 	testMap := make(map[string]tests)
 	testJSON := "{\"url\":\"http://test.com/\"}"
 	testInvalidJSON := "{\"url\":\"http://endxivm.com/y1ry"
@@ -123,6 +122,7 @@ func TestShortenerApiHandlerInFile(t *testing.T) {
 }
 
 func TestShortenerHandlerInFile(t *testing.T) {
+	var testInFileStorage = storage.GetFileStorage("/tmp/test25", "http://localhost:8080")
 	cfg := config.New()
 	testMap := make(map[string]tests)
 	hashStringFirstURL := shorten.EncodeString([]byte(firstTestURL))
@@ -164,6 +164,7 @@ func TestShortenerHandlerInFile(t *testing.T) {
 }
 
 func TestGetUrlHandlerInFile(t *testing.T) {
+	testInFileStorage := storage.GetFileStorage("/tmp/test25", "http://localhost:8080")
 	testMap := make(map[string]tests)
 	firstHashString := shorten.EncodeString([]byte(firstTestURL))
 	secondHashString := shorten.EncodeString([]byte("noexists"))
@@ -193,6 +194,7 @@ func TestGetUrlHandlerInFile(t *testing.T) {
 }
 
 func TestGetUserUrlsHandlerInFile(t *testing.T) {
+	testInFileStorage := storage.GetFileStorage("/tmp/test25", "http://localhost:8080")
 	cfg := config.New()
 	testMap := make(map[string]tests)
 	firstHashString := shorten.EncodeString([]byte(firstTestURL))
@@ -224,6 +226,7 @@ func TestGetUserUrlsHandlerInFile(t *testing.T) {
 }
 
 func TestShortenAPIBatchHandlerInFile(t *testing.T) {
+	testInFileStorage := storage.GetFileStorage("/tmp/test25", "http://localhost:8080")
 	testMap := make(map[string]tests)
 	var before []storage.BatchStructBefore
 	before = append(before, storage.BatchStructBefore{
