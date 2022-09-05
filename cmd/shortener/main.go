@@ -15,31 +15,30 @@ func main() {
 	//Creating config instance
 	log.Print("Initializing config")
 	cfg := config.New()
-	//
-	////Creating server instance
-	//r := app.NewRouter()
-	//
-	//log.Printf("Server started on %s with BaseURL param: %s with file s path: %s "+"and "+
-	//	"DatabaseDSN string: %s", cfg.ServerAddress, cfg.BaseURL, cfg.FileStoragePath, cfg.DatabaseDSN)
-	//log.Fatal(http.ListenAndServe(cfg.ServerAddress, r))
+
 	var (
 		stor  storage.Storage
-		dbObj db.Database
 		err   error
+		dbObj *db.Database
 	)
+
 	switch {
 	case cfg.DatabaseDSN != "":
 		log.Println("Storage is DBStorage")
-		stor, err = storage.GetDBStorage(cfg.DatabaseDSN, cfg.BaseURL)
+		dbObj, err = db.ConnectToDB(cfg.DatabaseDSN)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+		stor, err = storage.GetDBStorage(cfg.BaseURL, dbObj)
 		if err != nil {
 			log.Fatal("failed to init dbSource: " + err.Error())
 		}
 		defer func(dbObj *db.Database) {
 			err = dbObj.CloseDBConn()
 			if err != nil {
-				log.Fatal(err)
+				log.Fatal("failed to close db conn: " + err.Error())
 			}
-		}(&dbObj)
+		}(dbObj)
 	case cfg.FileStoragePath != "":
 		log.Println("Storage is FileStorage")
 		stor = storage.GetFileStorage(cfg.FileStoragePath, cfg.BaseURL)
@@ -48,7 +47,7 @@ func main() {
 		stor = storage.GetInMemoryStorage(cfg.BaseURL)
 	}
 
-	newHandler := handlers.NewRequestHandler(stor, cfg.DatabaseDSN)
+	newHandler := handlers.NewRequestHandler(stor, dbObj)
 	router := app.NewRouter(newHandler)
 
 	log.Printf("Server started on %s with BaseURL param: %s with file s path: %s "+"and "+
