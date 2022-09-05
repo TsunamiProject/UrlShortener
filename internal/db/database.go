@@ -42,12 +42,13 @@ const (
 	getOriginalURLsByCookie   = `SELECT SHORTURL,ORIGINALURL FROM noauthurls WHERE AUTHID=$1`
 )
 
-func ConnectToDB(databaseDsn string) *Database {
+func ConnectToDB(databaseDsn string) (*Database, error) {
 	db, err := sql.Open("pgx", databaseDsn)
 	if err != nil {
-		log.Fatal("error with accessing to DB")
+		log.Println("error with accessing to DB")
+		return nil, err
 	}
-	return &Database{db: db}
+	return &Database{db: db}, nil
 }
 
 func (dbObj *Database) Ping() error {
