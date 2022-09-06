@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/TsunamiProject/UrlShortener.git/internal/config"
-	"github.com/TsunamiProject/UrlShortener.git/internal/db"
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/middleware"
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
 	"github.com/TsunamiProject/UrlShortener.git/internal/storage"
@@ -43,7 +42,7 @@ type tests struct {
 }
 
 func runTestsInMem(s storage.Storage, tm map[string]tests, t *testing.T) {
-	rh := NewRequestHandler(s, &db.Database{})
+	rh := NewRequestHandler(s)
 	for test, tfields := range tm {
 		t.Run(test, func(t *testing.T) {
 			req := httptest.NewRequest(tfields.method, tfields.request, strings.NewReader(tfields.requestBody))
