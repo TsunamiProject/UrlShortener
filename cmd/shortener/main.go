@@ -27,7 +27,7 @@ func main() {
 		log.Println("Storage is DBStorage")
 		dbObj, err = db.ConnectToDB(cfg.DatabaseDSN)
 		if err != nil {
-			log.Fatal(err.Error())
+			log.Fatalf("Connection failed with DSN: %s ", cfg.DatabaseDSN)
 		}
 		stor, err = storage.GetDBStorage(cfg.BaseURL, dbObj)
 		if err != nil {
@@ -47,7 +47,7 @@ func main() {
 		stor = storage.GetInMemoryStorage(cfg.BaseURL)
 	}
 
-	newHandler := handlers.NewRequestHandler(stor, dbObj)
+	newHandler := handlers.NewRequestHandler(stor)
 	router := app.NewRouter(newHandler)
 
 	log.Printf("Server started on %s with BaseURL param: %s with file s path: %s "+"and "+
