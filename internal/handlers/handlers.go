@@ -13,13 +13,11 @@ import (
 
 type RequestHandler struct {
 	storage storage.Storage
-	dbObj   *db.Database
 }
 
-func NewRequestHandler(storage storage.Storage, dbObj *db.Database) *RequestHandler {
+func NewRequestHandler(storage storage.Storage) *RequestHandler {
 	return &RequestHandler{
 		storage: storage,
-		dbObj:   dbObj,
 	}
 }
 
@@ -165,23 +163,24 @@ func (rh *RequestHandler) GetURLHandler(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-//PingDBHandler send 200 status code if db is available and 500 if not responding
-func (rh *RequestHandler) PingDBHandler(w http.ResponseWriter, r *http.Request) {
+//PingHandler send 200 status code if db is available and 500 if not responding
+func (rh *RequestHandler) PingHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Recieved request with method: %s from: %s. Ping DB",
 		r.Method, r.Host)
 
-	err := rh.dbObj.Ping()
+	err := rh.storage.IsOk()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-	w.Header().Set("content-type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, err = w.Write([]byte(""))
-	if err != nil {
-		log.Printf("Error: %s", err)
 		return
+	} else {
+		w.Header().Set("content-type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write([]byte(""))
+		if err != nil {
+			log.Printf("Error: %s", err)
+			return
+		}
 	}
-
 }
 
 //GetAPIUserURLHandler send json with all created urls with request cookie
