@@ -15,7 +15,7 @@ func NewRouter(rh *handlers.RequestHandler) chi.Router {
 	router.Use(middleware.CookieHandler)
 	router.Get("/*", rh.GetURLHandler)
 	router.Get("/api/user/urls", rh.GetAPIUserURLHandler)
-	router.Get("/ping", rh.PingDBHandler)
+	router.Get("/ping", rh.PingHandler)
 	router.Post("/", rh.ShortenerHandler)
 	router.Post("/api/shorten", rh.ShortenAPIHandler)
 	router.Post("/api/shorten/batch", rh.ShortenAPIBatchHandler)
