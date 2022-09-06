@@ -19,11 +19,11 @@ import (
 	"github.com/TsunamiProject/UrlShortener.git/internal/storage"
 )
 
-func runTestsInDB(s storage.Storage, db *db.Database, tm map[string]tests, t *testing.T) {
+func runTestsInDB(s storage.Storage, tm map[string]tests, t *testing.T) {
 	if s == nil {
 		t.Skip()
 	}
-	rh := NewRequestHandler(s, db)
+	rh := NewRequestHandler(s)
 	for test, tfields := range tm {
 		t.Run(test, func(t *testing.T) {
 			req := httptest.NewRequest(tfields.method, tfields.request, strings.NewReader(tfields.requestBody))
@@ -97,7 +97,7 @@ func TestMethodNotAllowedHandlerInDB(t *testing.T) {
 		},
 	}
 	if testInDBStorage != nil {
-		runTestsInDB(testInDBStorage, dbConn, testMap, t)
+		runTestsInDB(testInDBStorage, testMap, t)
 	}
 }
 
@@ -132,7 +132,7 @@ func TestShortenerApiHandlerInDB(t *testing.T) {
 		},
 	}
 	if testInDBStorage != nil {
-		runTestsInDB(testInDBStorage, dbConn, testMap, t)
+		runTestsInDB(testInDBStorage, testMap, t)
 	}
 }
 
@@ -178,7 +178,7 @@ func TestShortenerHandlerInDB(t *testing.T) {
 		},
 	}
 	if testInDBStorage != nil {
-		runTestsInDB(testInDBStorage, dbConn, testMap, t)
+		runTestsInDB(testInDBStorage, testMap, t)
 	}
 }
 
@@ -212,7 +212,7 @@ func TestGetUrlHandlerInDB(t *testing.T) {
 		},
 	}
 	if testInDBStorage != nil {
-		runTestsInDB(testInDBStorage, dbConn, testMap, t)
+		runTestsInDB(testInDBStorage, testMap, t)
 	}
 }
 
@@ -248,7 +248,7 @@ func TestGetUserUrlsHandlerInDB(t *testing.T) {
 		},
 	}
 	if testInDBStorage != nil {
-		runTestsInDB(testInDBStorage, dbConn, testMap, t)
+		runTestsInDB(testInDBStorage, testMap, t)
 	}
 }
 
@@ -283,7 +283,7 @@ func TestShortenAPIBatchHandlerInDB(t *testing.T) {
 		},
 	}
 	if testInDBStorage != nil {
-		runTestsInDB(testInDBStorage, dbConn, testMap, t)
+		runTestsInDB(testInDBStorage, testMap, t)
 	}
 }
 
@@ -307,7 +307,7 @@ func TestDeleteHandlerInDB(t *testing.T) {
 		},
 	}
 	if testInDBStorage != nil {
-		runTestsInDB(testInDBStorage, dbConn, testMap, t)
+		runTestsInDB(testInDBStorage, testMap, t)
 	}
 }
 
@@ -329,6 +329,6 @@ func TestGetDeletedURL(t *testing.T) {
 		},
 	}
 	if testInDBStorage != nil {
-		runTestsInDB(testInDBStorage, dbConn, testMap, t)
+		runTestsInDB(testInDBStorage, testMap, t)
 	}
 }
