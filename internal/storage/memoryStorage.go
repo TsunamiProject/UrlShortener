@@ -10,8 +10,6 @@ import (
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
 )
 
-var _ Storage = &URLsWithAuth{}
-
 func GetInMemoryStorage(baseURL string) *URLsWithAuth {
 	return &URLsWithAuth{BaseURL: baseURL}
 }
@@ -34,6 +32,22 @@ type BatchStructBefore struct {
 type BatchStructAfter struct {
 	CorrelationID string `json:"correlation_id"`
 	ShortURL      string `json:"short_url"`
+}
+
+func (u *URLsWithAuth) IsOk() error {
+	_, err := u.Write([]byte("test"), "test")
+	if err != nil {
+		return err
+	}
+	_, err = u.Read(shorten.EncodeString([]byte("test")))
+	if err != nil {
+		return err
+	}
+	_, err = u.ReadAll("test")
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (u *URLsWithAuth) Batch(b []byte, authCookieValue string) (string, error) {

@@ -11,8 +11,6 @@ import (
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
 )
 
-//var _ Storage = &FileStorage{}
-
 func GetFileStorage(filePath string, baseURL string) *FileStorage {
 	return &FileStorage{FilePath: filePath, BaseURL: baseURL}
 }
@@ -25,6 +23,26 @@ type FileStorage struct {
 type FileStruct struct {
 	CookieValue string
 	URLs        JSONURL
+}
+
+func (f *FileStorage) IsOk() error {
+	if len(f.FilePath) == 0 {
+		return errors.New("err")
+	}
+	_, err := f.Write([]byte("test"), "test")
+	if err != nil {
+		return err
+	}
+	_, err = f.Read(shorten.EncodeString([]byte("test")))
+	if err != nil {
+		return err
+	}
+	_, err = f.ReadAll("test")
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (f *FileStorage) Batch(b []byte, authCookieValue string) (string, error) {

@@ -11,8 +11,6 @@ import (
 	"github.com/TsunamiProject/UrlShortener.git/internal/handlers/shorten"
 )
 
-var _ Storage = &DBStorage{}
-
 type DBStorage struct {
 	db      *db.Database
 	baseURL string
@@ -25,6 +23,14 @@ func GetDBStorage(baseURL string, dbObj *db.Database) (*DBStorage, error) {
 	}
 
 	return &DBStorage{db: dbObj, baseURL: baseURL}, nil
+}
+
+func (dbObj *DBStorage) IsOk() error {
+	err := dbObj.db.Ping()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (dbObj *DBStorage) Write(b []byte, authCookieValue string) (string, error) {
